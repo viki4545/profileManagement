@@ -1,0 +1,21 @@
+.home-content-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 85%;
+  border: 1px solid #3b3b3b;
+  padding: 0.5rem;
+}
+
+.home-content-container > h1 {
+  padding: 1.5rem;
+  border: 1px solid #3b3b3b;
+  color: var(--primary-text-color);
+}
+
+@media only screen and (max-width: 430px) {
+  .home-content-container > h1 {
+    text-align: center;
+  }
+}

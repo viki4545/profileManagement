@@ -1,0 +1,109 @@
+.signup-main-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 85%;
+  border: 1px solid #3b3b3b;
+}
+.signup-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  align-items: center;
+  width: 30%;
+  height: 90%;
+  border: 1px solid #3a3a3a;
+  border-radius: 10px;
+  box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+  background-color: var(--foreground-color);
+}
+
+.signup-header-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 6rem;
+  border-bottom: 1px solid #3a3a3a;
+  color: var(--primary-text-color);
+}
+
+.signup-content-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 80%;
+  height: 80%;
+}
+
+.signup-content-container > form {
+  padding-top: 3rem;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.signup-email-container,
+.signup-password-container,
+.signup-cnf-password-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  align-items: flex-start;
+  width: 100%;
+  height: 16%;
+  color: var(--primary-text-color);
+  font-size: 1.2rem;
+  margin-bottom: 3rem;
+}
+
+.signup-email-container input,
+.signup-password-container input,
+.signup-cnf-password-container input {
+  width: 100%;
+  height: 2.5rem;
+  border-radius: 5px;
+  background-color: var(--background-color);
+  color: var(--primary-text-color);
+  padding-left: 1.5rem;
+  font-size: 1rem;
+  border: 1px solid #3b3b3b;
+}
+
+#input-errors {
+  color: var(--input-errors);
+  font-size: 0.75rem;
+}
+
+.signup-content-container > form > button {
+  padding: 1rem 2rem;
+  border-radius: 5px;
+  background-color: var(--toggle-fg);
+  border: none;
+  color: var(--primary-text-color);
+  font-size: 1rem;
+  font-weight: 500;
+  margin-top: 1rem;
+}
+
+@media only screen and (max-width: 430px) {
+  .signup-container {
+    width: 85%;
+  }
+
+  .signup-content-container {
+    width: 90%;
+  }
+
+  .signup-email-container,
+  .signup-password-container,
+  .signup-cnf-password-container {
+    height: 15%;
+    font-size: 1rem;
+  }
+}
