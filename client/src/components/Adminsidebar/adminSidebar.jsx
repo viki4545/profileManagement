@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import "./adminSidebar.css";
-import { RxHamburgerMenu } from "react-icons/rx";
+import { RxCross2 } from "react-icons/rx";
 
 const Adminsidebar = ({ handleSidebar }) => {
   return (
@@ -8,7 +8,7 @@ const Adminsidebar = ({ handleSidebar }) => {
       <div className="admin-sidebar-main-container">
         <div className="admin-sidebar-header-container">
           <div className="admin-ham-menu-container" onClick={handleSidebar}>
-            <RxHamburgerMenu />
+            <RxCross2 />
           </div>
           <h1>upliance.ai</h1>
         </div>

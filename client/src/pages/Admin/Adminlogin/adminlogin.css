@@ -1,48 +1,35 @@
-.admin-login-container {
+.login-main-container {
   display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
+  justify-content: center;
   align-items: center;
   width: 100%;
-  height: 100vh;
+  height: 85%;
+  border: 1px solid #3b3b3b;
 }
-
-.admin-login-toggle-container {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  padding: 2rem;
-  width: 100%;
-}
-
-.admin-login-content-container {
+.login-container {
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
+  justify-content: space-around;
   align-items: center;
-  width: 25%;
-  height: 54%;
+  width: 30%;
+  height: 80%;
   border: 1px solid #3a3a3a;
-  margin-top: 6rem;
   border-radius: 10px;
   box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
   background-color: var(--foreground-color);
 }
 
-.admin-login-header-container {
+.login-header-container {
   display: flex;
   justify-content: center;
   align-items: center;
   width: 100%;
-  padding: 2rem;
+  height: 15%;
   border-bottom: 1px solid #3a3a3a;
-}
-
-.admin-login-header-container > h1 {
   color: var(--primary-text-color);
 }
 
-.admin-login-input-container {
+.login-content-container {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -51,8 +38,9 @@
   height: 80%;
 }
 
-.admin-login-input-container > form {
-  padding-top: 4rem;
+.login-content-container > form {
+  position: relative;
+  padding-top: 2rem;
   width: 100%;
   height: 100%;
   display: flex;
@@ -61,66 +49,88 @@
   align-items: center;
 }
 
-.admin-login-email-container,
-.admin-login-password-container,
-.admin-login-cnf-password-container {
+.login-email-container,
+.login-password-container,
+.login-cnf-password-container {
   display: flex;
   flex-direction: column;
   justify-content: space-around;
   align-items: flex-start;
   width: 100%;
-  height: 25%;
+  height: 20%;
   color: var(--primary-text-color);
-  font-size: 1.2rem;
-  margin-bottom: 3rem;
+  font-size: 0.9rem;
+  margin-bottom: 2rem;
 }
 
-.admin-login-email-container input,
-.admin-login-password-container input,
-.admin-login-cnf-password-container input {
+.login-email-container input,
+.login-password-container input,
+.login-cnf-password-container input {
   width: 100%;
-  height: 2.5rem;
+  height: 2rem;
   border-radius: 5px;
   background-color: var(--background-color);
   color: var(--primary-text-color);
   padding-left: 1.5rem;
-  font-size: 0.7rem;
+  font-size: 1rem;
   border: 1px solid #3b3b3b;
 }
 
 #input-errors {
   color: var(--input-errors);
-  font-size: 0.75rem;
+  font-size: 0.5rem;
 }
 
-.admin-login-input-container > form > button {
+.login-content-container > form > button {
   padding: 1rem 2rem;
   border-radius: 5px;
   background-color: var(--toggle-fg);
   border: none;
   color: var(--primary-text-color);
-  font-size: 1rem;
-  font-weight: 500;
+  font-size: 0.9rem;
+  /* font-weight: 500; */
+  /* margin-top: 1rem; */
+}
+
+.create-an-account {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  color: #3b3b3b;
+  margin-top: 10%;
+  font-size: 0.8rem;
+}
+
+.create-an-account > a {
+  color: var(--primary-text-color);
+  margin-left: 2%;
 }
 
 @media only screen and (max-width: 430px) {
-  .admin-login-content-container {
+  .login-container {
     width: 85%;
   }
 
-  .admin-login-content-container {
+  .login-content-container {
     width: 90%;
   }
 
-  .admin-login-email-container,
-  .admin-login-password-container {
+  .login-email-container,
+  .login-password-container,
+  .login-cnf-password-container {
     height: 20%;
     font-size: 0.7rem;
   }
 
-  .admin-login-email-container > label,
-  .admin-login-password-container > label {
+  .login-email-container > label,
+  .login-password-container > label,
+  .login-cnf-password-container > label {
     font-size: 1rem;
     font-weight: 200;
+  }
+
+  .create-an-account {
+    bottom: 10rem;
   }
 }

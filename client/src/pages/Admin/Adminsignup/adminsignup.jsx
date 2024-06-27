@@ -1,5 +1,5 @@
 import React from "react";
-import "./signup.css";
+import "./adminsignup.css";
 import * as Yup from "yup";
 import Navbar from "../../../components/Navbar/navbar";
 import { useDispatch, useSelector } from "react-redux";
@@ -13,7 +13,7 @@ import { storage, db } from "../../../firebase";
 import "react-toastify/dist/ReactToastify.css";
 import { ToastContainer, toast } from "react-toastify";
 
-const Signup = ({ isChecked, handleChange }) => {
+const Adminsignup = ({ isChecked, handleChange }) => {
   let navigate = useNavigate();
   const dispatch = useDispatch();
 
@@ -25,12 +25,12 @@ const Signup = ({ isChecked, handleChange }) => {
         password
       );
       const user = userCredential.user;
-      await setDoc(doc(db, "users", user.uid), {
+      await setDoc(doc(db, "admin", user.uid), {
         uid: user.uid,
         email,
       });
-      toast.success("user created successfully");
-      navigate("/login");
+      toast.success("admin successfully");
+      navigate("/admin/login");
     } catch (error) {
       toast.error(error.message);
     }
@@ -74,7 +74,7 @@ const Signup = ({ isChecked, handleChange }) => {
       <div className="signup-main-container">
         <div className="signup-container">
           <div className="signup-header-container">
-            <h1>Sign Up</h1>
+            <h1>Add admin</h1>
           </div>
           <div className="signup-content-container">
             <form onSubmit={createUser.handleSubmit}>
@@ -130,7 +130,7 @@ const Signup = ({ isChecked, handleChange }) => {
                 Submit
               </button>
               <p className="already-have-account">
-                Already have an account ? <a href="/login">Login</a>
+                Already have an account ? <a href="/admin/login">Login</a>
               </p>
             </form>
           </div>
@@ -140,4 +140,4 @@ const Signup = ({ isChecked, handleChange }) => {
   );
 };
 
-export default Signup;
+export default Adminsignup;
