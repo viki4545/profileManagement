@@ -10,6 +10,7 @@
   height: 100%;
   border: 1px solid #3a3a3a;
   background-color: var(--foreground-color);
+  z-index: 1;
 }
 
 .admin-sidebar-header-container {
@@ -26,7 +27,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 1.8rem;
+  padding: 1.1rem;
   border: 1px solid #3a3a3a;
   font-size: 1rem;
   color: var(--primary-text-color);

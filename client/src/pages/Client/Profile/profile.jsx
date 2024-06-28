@@ -103,24 +103,23 @@ const Profile = ({ isChecked, handleChange }) => {
     }),
     onSubmit: async (values) => {
       const profileData = {
+        image: imageUrl,
         firstName: values.firstName,
         lastName: values.lastName,
         gender: values.gender,
         interest: values.interest,
         country: values.country,
         phone: values.phone,
-        emailList: values.emailList,
-        phoneList: values.phoneList,
+        emailList: addEmail,
+        phoneList: addPhone,
       };
       if (values.image && typeof values.image !== "string") {
-        const storageRef = ref(storage, `profiles/${id}/${values.image.name}`);
+        const storageRef = ref(storage, `profiles/${id}/${values.image}`);
         const uploadTask = uploadBytesResumable(storageRef, values.image);
 
         uploadTask.on(
           "state_changed",
-          (snapshot) => {
-            // Handle progress
-          },
+          (snapshot) => {},
           (error) => {
             toast.error("Failed to upload image");
           },

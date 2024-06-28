@@ -14,6 +14,7 @@ import AllUsers from "./pages/Admin/AllUsers/allUsers.jsx";
 import Adminaccess from "./pages/Admin/Adminaccess/adminAccess.jsx";
 import ProtectedRoute from "./components/protectedRoute/protectedRoute.js";
 import Adminsignup from "./pages/Admin/Adminsignup/adminsignup.jsx";
+import Userdetails from "./pages/Admin/Userdetails/userdetails.jsx";
 
 function App() {
   const preference = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -74,6 +75,15 @@ function App() {
               path="/admin/signup"
               element={
                 <Adminsignup
+                  isChecked={isDark}
+                  handleChange={() => setIsDark(!isDark)}
+                />
+              }
+            />
+            <Route
+              path="/admin/users/:id"
+              element={
+                <Userdetails
                   isChecked={isDark}
                   handleChange={() => setIsDark(!isDark)}
                 />

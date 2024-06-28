@@ -28,9 +28,12 @@ const Signup = ({ isChecked, handleChange }) => {
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         email,
-      });
-      toast.success("user created successfully");
-      navigate("/login");
+      })
+        .then(() => {
+          toast.success("user created successfully");
+          navigate("/login");
+        })
+        .catch(() => toast.error("user not created"));
     } catch (error) {
       toast.error(error.message);
     }
@@ -40,7 +43,7 @@ const Signup = ({ isChecked, handleChange }) => {
     initialValues: {
       email: "",
       password: "",
-      confirmPassword: "",
+      name: "",
     },
     validationSchema: Yup.object({
       email: Yup.string().email("Invalid email address").required("Required"),
@@ -51,15 +54,13 @@ const Signup = ({ isChecked, handleChange }) => {
         .matches(/[A-Z]/, "Password requires an uppercase letter")
         .matches(/[^\w]/, "Password requires a symbol")
         .required("Required"),
-      confirmPassword: Yup.string()
-        .oneOf([Yup.ref("password"), null], "Passwords must match")
-        .required("Required"),
+      name: Yup.string().required("Please enter your name"),
     }),
     onSubmit: (values) => {
       let userData = {
         email: values.email,
         password: values.password,
-        confirmPassword: values.confirmPassword,
+        name: values.name,
       };
       dispatch(userRegisterThunk(userData)).then(() => {
         handleSignup(userData.email, userData.password);
@@ -78,6 +79,20 @@ const Signup = ({ isChecked, handleChange }) => {
           </div>
           <div className="signup-content-container">
             <form onSubmit={createUser.handleSubmit}>
+              <div className="signup-cnf-password-container">
+                <label htmlFor="name">Name</label>
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  onChange={createUser.handleChange}
+                  onBlur={createUser.handleBlur}
+                  value={createUser.values.name}
+                />
+                {createUser.touched.name && createUser.errors.name ? (
+                  <div id="input-errors">{createUser.errors.name}</div>
+                ) : null}
+              </div>
               <div className="signup-email-container">
                 <label htmlFor="email">Email Address</label>
                 <input
@@ -105,24 +120,6 @@ const Signup = ({ isChecked, handleChange }) => {
                 />
                 {createUser.touched.password && createUser.errors.password ? (
                   <div id="input-errors">{createUser.errors.password}</div>
-                ) : null}
-              </div>
-
-              <div className="signup-cnf-password-container">
-                <label htmlFor="confirmPassword">Confirm Password</label>
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  onChange={createUser.handleChange}
-                  onBlur={createUser.handleBlur}
-                  value={createUser.values.confirmPassword}
-                />
-                {createUser.touched.confirmPassword &&
-                createUser.errors.confirmPassword ? (
-                  <div id="input-errors">
-                    {createUser.errors.confirmPassword}
-                  </div>
                 ) : null}
               </div>
 
