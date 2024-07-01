@@ -9,7 +9,15 @@ import { useFormik } from "formik";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../../../firebase";
 import { toast, ToastContainer } from "react-toastify";
-import { useNavigate, useParams } from "react-router-dom";
+import {
+  useNavigate,
+  useParams,
+  useLocation,
+  unstable_HistoryRouter as useHistory,
+  useNavigation,
+  createBrowserRouter,
+  useNavigationType,
+} from "react-router-dom";
 import {
   collection,
   doc,
@@ -17,7 +25,6 @@ import {
   getDocs,
   updateDoc,
 } from "firebase/firestore";
-import useAuth from "../../../custom-hooks/useAuth";
 import {
   clearError,
   userProfileByIdThunk,
@@ -31,7 +38,6 @@ const Profile = ({ isChecked, handleChange }) => {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
 
   const [userData, setUserData] = useState({});
   const [isMail, setIsMail] = useState(false);
@@ -42,6 +48,7 @@ const Profile = ({ isChecked, handleChange }) => {
   const [addPhone, setAddPhone] = useState([]);
   const [addInterest, setAddInterest] = useState([]);
   const [imageUrl, setImageUrl] = useState("");
+  const [unsavedChanges, setUnsavedChanges] = useState(false);
 
   const error = useSelector((state) => state.rootReducer.userInfo.error);
 
@@ -143,12 +150,14 @@ const Profile = ({ isChecked, handleChange }) => {
             // Update user profile
             await updateDoc(doc(db, "users", id), profileData);
             toast.success("Profile updated successfully!");
+            navigate(`/user/profile/${id}`);
           }
         );
       } else {
         // Update user profile without new image
         await updateDoc(doc(db, "users", id), profileData);
         toast.success("Profile updated successfully!");
+        navigate(`/user/profile/${id}`);
       }
     },
   });
@@ -159,6 +168,7 @@ const Profile = ({ isChecked, handleChange }) => {
       setIfImage(true);
       setImageUrl(URL.createObjectURL(file));
       userProfile.setFieldValue("image", file);
+      setUnsavedChanges(true);
     }
   };
 
@@ -168,6 +178,18 @@ const Profile = ({ isChecked, handleChange }) => {
       dispatch(clearError());
     }
   }, [dispatch, error]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue =
+        "You have unsaved changes. Are you sure you want to leave?";
+    };
+
+    return () => {
+      window.addEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [userProfile.dirty]);
 
   return (
     <>

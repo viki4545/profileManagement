@@ -1,23 +1,9 @@
 import React, { useEffect, useState } from "react";
 import "./userdetails.css";
-import Navbar from "../../../components/Navbar/navbar";
 
-import * as Yup from "yup";
 import { RiArrowDownSLine, RiArrowUpSLine } from "react-icons/ri";
-import { RxCross2 } from "react-icons/rx";
-import { useFormik } from "formik";
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { db, storage } from "../../../firebase";
 import { toast, ToastContainer } from "react-toastify";
 import { useNavigate, useParams } from "react-router-dom";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  updateDoc,
-} from "firebase/firestore";
-import useAuth from "../../../custom-hooks/useAuth";
 import Adminnavbar from "../../../components/Adminnavbar/adminNavbar";
 import Adminsidebar from "../../../components/Adminsidebar/adminSidebar";
 import { useDispatch, useSelector } from "react-redux";
@@ -34,7 +20,6 @@ const Userdetails = ({ isChecked, handleChange }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { currentUser } = useAuth();
   const [userData, setUserData] = useState({});
   const [isMail, setIsMail] = useState(false);
   const [isPhone, setIsPhone] = useState(false);
