@@ -15,10 +15,11 @@
 
 .admin-sidebar-header-container {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
+  padding-left: 1.5rem;
   width: 100%;
-  height: 6rem;
+  height: 4.5rem;
   gap: 1rem;
   border-bottom: 1px solid #3a3a3a;
 }
@@ -27,7 +28,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 1.1rem;
+  padding: 0.8rem;
   border: 1px solid #3a3a3a;
   font-size: 1rem;
   color: var(--primary-text-color);
@@ -38,6 +39,7 @@
   padding: 0.5rem;
   border: 1px solid #3a3a3a;
   color: var(--primary-text-color);
+  font-size: 1.5rem;
 }
 
 .admin-sidebar-link-container {
@@ -53,7 +55,7 @@
   justify-content: center;
   align-items: center;
   width: 100%;
-  height: 4rem;
+  height: 3.5rem;
   border-bottom: 1px solid #3a3a3a;
   color: var(--primary-text-color);
   font-size: 1rem;

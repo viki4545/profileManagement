@@ -1,40 +1,27 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "./adminlogin.css";
 import * as Yup from "yup";
-import Navbar from "../../../components/Navbar/navbar";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../../firebase";
 import { ToastContainer, toast } from "react-toastify";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { useFormik } from "formik";
-import { userLoginThunk } from "../../../redux/features/userSlice/userSlice";
+import Adminnavbar from "../../../components/Adminnavbar/adminNavbar";
+import {
+  adminLoginThunk,
+  clearError,
+} from "../../../redux/features/adminSlice/adminSlice";
+import { useTranslation } from "react-i18next";
 
 const Adminlogin = ({ isChecked, handleChange }) => {
+  const { t } = useTranslation();
+
   let navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [userId, setUserId] = useState();
-
-  const handleLogin = async ({ email, password }) => {
-    try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      const user = userCredential.user;
-      if (user) {
-        toast.success("User logged in successfully!");
-        setUserId(user.uid);
-        navigate(`/admin/dashboard`);
-      }
-    } catch (error) {
-      toast.error(error.message);
-    }
-  };
+  const error = useSelector((state) => state.rootReducer.adminInfo.error);
+  const isLoggedIn = useSelector(
+    (state) => state.rootReducer.userInfo.isLoggedIn
+  );
 
   const userLogin = useFormik({
     initialValues: {
@@ -51,35 +38,41 @@ const Adminlogin = ({ isChecked, handleChange }) => {
         .matches(/[^\w]/, "Password requires a symbol"),
     }),
     onSubmit: (values) => {
-      let userData = {
-        email: values.email,
-        password: values.password,
-      };
-      dispatch(userLoginThunk(userData)).then((data) => {
-        const email = data.payload.email;
-        const password = data.payload.password;
-        handleLogin({ email, password });
+      dispatch(adminLoginThunk(values)).then((data) => {
+        if (data.payload.authToken || isLoggedIn) {
+          navigate("/admin/dashboard");
+        }
       });
     },
   });
 
+  useEffect(() => {
+    if (error) {
+      toast.error(error.message);
+      dispatch(clearError());
+    }
+  }, [error, dispatch]);
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem("authToken");
+    if (!storedToken) {
+      navigate("/admin/login");
+    }
+  }, []);
+
   return (
     <>
       <ToastContainer />
-      <Navbar
-        isChecked={isChecked}
-        handleChange={handleChange}
-        userId={userId}
-      />
+      <Adminnavbar isChecked={isChecked} handleChange={handleChange} />
       <div className="login-main-container">
         <div className="login-container">
           <div className="login-header-container">
-            <h2>Admin Login</h2>
+            <h2>{t("AdminLogin")}</h2>
           </div>
           <div className="login-content-container">
             <form onSubmit={userLogin.handleSubmit}>
               <div className="login-email-container">
-                <label htmlFor="email">Email Address</label>
+                <label htmlFor="email">{t("EmailAddress")}</label>
                 <input
                   id="email"
                   name="email"
@@ -94,7 +87,7 @@ const Adminlogin = ({ isChecked, handleChange }) => {
               </div>
 
               <div className="login-password-container">
-                <label htmlFor="password">Password</label>
+                <label htmlFor="password">{t("Password")}</label>
                 <input
                   id="password"
                   name="password"
@@ -108,11 +101,9 @@ const Adminlogin = ({ isChecked, handleChange }) => {
                 ) : null}
               </div>
 
-              <button type="submit">Submit</button>
-              <p className="create-an-account">
-                Don't have an account?
-                <a href="/admin/signup">Register</a>
-              </p>
+              <button type="submit" onClick={userLogin.handleSubmit}>
+                {t("Submit")}
+              </button>
             </form>
           </div>
         </div>

@@ -233,7 +233,7 @@
   justify-content: flex-start;
   align-items: flex-start;
   width: 100%;
-  height: 4rem;
+  height: 3rem;
   border: none;
   gap: 0.5rem;
 }
@@ -421,7 +421,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 30%;
+  width: 60%;
   height: 2rem;
   border: 1px solid #3b3b3b;
   border-radius: 5px;
@@ -571,7 +571,7 @@
 
   .profile-mob-add-email-button-container,
   .profile-mob-add-phone-button-container {
-    width: 50%;
+    width: 70%;
   }
 
   .profile-mob-form-submit-container {

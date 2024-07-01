@@ -1,40 +1,28 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "./login.css";
 import * as Yup from "yup";
 import Navbar from "../../../components/Navbar/navbar";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../../firebase";
 import { ToastContainer, toast } from "react-toastify";
-import { useDispatch } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useFormik } from "formik";
-import { userLoginThunk } from "../../../redux/features/userSlice/userSlice";
+import {
+  clearError,
+  userLoginThunk,
+} from "../../../redux/features/userSlice/userSlice";
+import { useTranslation } from "react-i18next";
 
 const Login = ({ isChecked, handleChange }) => {
+  const { t } = useTranslation();
+
   let navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [userId, setUserId] = useState();
-
-  const handleLogin = async ({ email, password }) => {
-    try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      const user = userCredential.user;
-      if (user) {
-        toast.success("User logged in successfully!");
-        setUserId(user.uid);
-        navigate(`/profile/${user.uid}`);
-      }
-    } catch (error) {
-      toast.error(error.message);
-    }
-  };
+  const error = useSelector((state) => state.rootReducer.userInfo.error);
+  const loading = useSelector((state) => state.rootReducer.userInfo.loading);
+  const isLoggedIn = useSelector(
+    (state) => state.rootReducer.userInfo.isLoggedIn
+  );
 
   const userLogin = useFormik({
     initialValues: {
@@ -51,35 +39,34 @@ const Login = ({ isChecked, handleChange }) => {
         .matches(/[^\w]/, "Password requires a symbol"),
     }),
     onSubmit: (values) => {
-      let userData = {
-        email: values.email,
-        password: values.password,
-      };
-      dispatch(userLoginThunk(userData)).then((data) => {
-        const email = data.payload.email;
-        const password = data.payload.password;
-        handleLogin({ email, password });
+      dispatch(userLoginThunk(values)).then((data) => {
+        if (data.payload.authToken || isLoggedIn) {
+          navigate(`/user/profile/${data.payload.uid}`);
+        }
       });
     },
   });
 
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+      dispatch(clearError());
+    }
+  }, [error, dispatch]);
+
   return (
     <>
       <ToastContainer />
-      <Navbar
-        isChecked={isChecked}
-        handleChange={handleChange}
-        userId={userId}
-      />
+      <Navbar isChecked={isChecked} handleChange={handleChange} />
       <div className="login-main-container">
         <div className="login-container">
           <div className="login-header-container">
-            <h2>Login</h2>
+            <h2>{t("login")}</h2>
           </div>
           <div className="login-content-container">
             <form onSubmit={userLogin.handleSubmit}>
               <div className="login-email-container">
-                <label htmlFor="email">Email Address</label>
+                <label htmlFor="email">{t("EmailAddress")}</label>
                 <input
                   id="email"
                   name="email"
@@ -94,7 +81,7 @@ const Login = ({ isChecked, handleChange }) => {
               </div>
 
               <div className="login-password-container">
-                <label htmlFor="password">Password</label>
+                <label htmlFor="password">{t("Password")}</label>
                 <input
                   id="password"
                   name="password"
@@ -108,10 +95,10 @@ const Login = ({ isChecked, handleChange }) => {
                 ) : null}
               </div>
 
-              <button type="submit">Submit</button>
+              <button type="submit">{t("Submit")}</button>
               <p className="create-an-account">
-                Don't have an account?
-                <a href="/signup">Register</a>
+                {t("Don't have an account?")}
+                <a href="/user/signup">{t("Register")}</a>
               </p>
             </form>
           </div>

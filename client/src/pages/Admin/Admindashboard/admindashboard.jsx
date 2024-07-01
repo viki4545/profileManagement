@@ -4,47 +4,37 @@ import Chart from "../../../components/Chart/chart";
 import Adminnavbar from "../../../components/Adminnavbar/adminNavbar";
 import Adminsidebar from "../../../components/Adminsidebar/adminSidebar";
 import "./admindashboard.css";
-import { getApiDataThunk } from "../../../redux/features/adminSlice/adminSlice";
+import {
+  clearError,
+  getApiDataThunk,
+} from "../../../redux/features/adminSlice/adminSlice";
+import { ToastContainer, toast } from "react-toastify";
+import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 const Admindashboard = ({ isChecked, handleChange }) => {
-  const dispatch = useDispatch();
+  const { t } = useTranslation();
 
-  const { apiData, loading, error } = useSelector(
-    (state) => state.rootReducer.adminInfo
-  );
+  let dispatch = useDispatch();
+  const navigate = useNavigate();
+  const loading = useSelector((state) => state.rootReducer.adminInfo);
+
+  const error = useSelector((state) => state.rootReducer.adminInfo.error);
+
   const [isSidebar, setIsSidebar] = useState(false);
-  const [filteredData, setFilteredData] = useState([]);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
   const [view, setView] = useState("line");
-  const views = ["line", "bar", "pie"];
+  const views = ["line", "bar", "pie", "dougnut"];
 
   useEffect(() => {
-    dispatch(getApiDataThunk());
-  }, [dispatch]);
-
-  useEffect(() => {
-    setFilteredData(Array.isArray(apiData.data) ? apiData.data : []);
-  }, [apiData]);
-
-  console.log(apiData.data);
-
-  const filterData = () => {
-    const filtered = apiData.data.filter((item) => {
-      const date = new Date(item.date);
-      return (
-        (!startDate || date >= new Date(startDate)) &&
-        (!endDate || date <= new Date(endDate))
-      );
-    });
-    setFilteredData(filtered);
-  };
-
-  if (loading) return <p>Loading...</p>;
-  if (error) return <p>Error loading data: {error}</p>;
+    if (error) {
+      toast.error(error.message);
+      dispatch(clearError());
+    }
+  }, [dispatch, error]);
 
   return (
     <>
+      <ToastContainer />
       <Adminnavbar
         isChecked={isChecked}
         handleChange={handleChange}
@@ -56,20 +46,7 @@ const Admindashboard = ({ isChecked, handleChange }) => {
       <div className="admin-dashboard-container">
         <div className="admin-dashboard-content-container">
           <div className="admin-dashboard-inner-content-container">
-            <h1>Data Visualization Dashboard</h1>
-            <div className="admin-dashboard-filter-container">
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-              <button onClick={filterData}>Filter</button>
-            </div>
+            <h1>{t("Data Visualization Dashboard")}</h1>
             <div className="admin-dashboard-select-view-container">
               <select onChange={(e) => setView(e.target.value)} value={view}>
                 {views.map((viewOption) => (
@@ -80,7 +57,9 @@ const Admindashboard = ({ isChecked, handleChange }) => {
                 ))}
               </select>
             </div>
-            <Chart data={filteredData} view={view} />
+            <div className={`admin-dashboard-chart-content-container ${view}`}>
+              <Chart view={view} />
+            </div>
           </div>
         </div>
       </div>

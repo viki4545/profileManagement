@@ -18,7 +18,7 @@
   justify-content: center;
   align-items: center;
   width: 100%;
-  height: 90%;
+  height: 100%;
   border: 1px solid #3b3b3b;
 }
 
@@ -26,8 +26,8 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 90%;
-  height: 90%;
+  width: 95%;
+  height: 95%;
   border: 1px solid #3b3b3b;
   border-radius: 10px;
   background-color: var(--forground-color);
@@ -106,4 +106,31 @@
   border-radius: 5px;
   color: var(--primary-text-color);
   background-color: var(--background-color);
+}
+
+.admin-dashboard-chart-content-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.admin-dashboard-chart-content-container canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.dataChart {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 90%;
+  height: 25rem;
+}
+
+@media only screen and (max-width: 430px) {
+  .admin-dashboard-inner-content-container > h1 {
+    font-size: 1rem;
+  }
 }

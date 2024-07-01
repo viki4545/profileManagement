@@ -1,10 +1,9 @@
-import React from "react";
+import React, { useEffect } from "react";
 import "./adminsignup.css";
 import * as Yup from "yup";
 import Navbar from "../../../components/Navbar/navbar";
 import { useDispatch, useSelector } from "react-redux";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { userRegisterThunk } from "../../../redux/features/userSlice/userSlice";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useFormik } from "formik";
 import { auth } from "../../../firebase";
@@ -12,29 +11,21 @@ import { setDoc, doc } from "firebase/firestore";
 import { storage, db } from "../../../firebase";
 import "react-toastify/dist/ReactToastify.css";
 import { ToastContainer, toast } from "react-toastify";
+import Adminnavbar from "../../../components/Adminnavbar/adminNavbar";
+import {
+  adminRegisterThunk,
+  clearError,
+} from "../../../redux/features/adminSlice/adminSlice";
+import { useTranslation } from "react-i18next";
 
 const Adminsignup = ({ isChecked, handleChange }) => {
+  const { t } = useTranslation();
+
   let navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const handleSignup = async (email, password) => {
-    try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      const user = userCredential.user;
-      await setDoc(doc(db, "admin", user.uid), {
-        uid: user.uid,
-        email,
-      });
-      toast.success("admin successfully");
-      navigate("/admin/login");
-    } catch (error) {
-      toast.error(error.message);
-    }
-  };
+  const error = useSelector((state) => state.rootReducer.adminInfo.error);
+  const loading = useSelector((state) => state.rootReducer.adminInfo.loading);
 
   const createUser = useFormik({
     initialValues: {
@@ -56,30 +47,41 @@ const Adminsignup = ({ isChecked, handleChange }) => {
         .required("Required"),
     }),
     onSubmit: (values) => {
-      let userData = {
-        email: values.email,
-        password: values.password,
-        confirmPassword: values.confirmPassword,
-      };
-      dispatch(userRegisterThunk(userData)).then(() => {
-        handleSignup(userData.email, userData.password);
-      });
+      dispatch(adminRegisterThunk(values))
+        .then((data) => {
+          if (data.payload) {
+            toast.success("Admin added successfully");
+            navigate("/admin/access");
+          } else {
+            toast.error("Failed to add admin");
+          }
+        })
+        .catch((error) => {
+          toast.error(error.message);
+        });
     },
   });
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error.message);
+      dispatch(clearError());
+    }
+  }, [dispatch, error]);
 
   return (
     <>
       <ToastContainer />
-      <Navbar isChecked={isChecked} handleChange={handleChange} />
+      <Adminnavbar isChecked={isChecked} handleChange={handleChange} />
       <div className="signup-main-container">
         <div className="signup-container">
           <div className="signup-header-container">
-            <h1>Add admin</h1>
+            <h1>{t("Add admin")}</h1>
           </div>
           <div className="signup-content-container">
             <form onSubmit={createUser.handleSubmit}>
               <div className="signup-email-container">
-                <label htmlFor="email">Email Address</label>
+                <label htmlFor="email">{t("EmailAddress")}</label>
                 <input
                   id="email"
                   name="email"
@@ -94,7 +96,7 @@ const Adminsignup = ({ isChecked, handleChange }) => {
               </div>
 
               <div className="signup-password-container">
-                <label htmlFor="password">Password</label>
+                <label htmlFor="password">{t("Password")}</label>
                 <input
                   id="password"
                   name="password"
@@ -109,7 +111,7 @@ const Adminsignup = ({ isChecked, handleChange }) => {
               </div>
 
               <div className="signup-cnf-password-container">
-                <label htmlFor="confirmPassword">Confirm Password</label>
+                <label htmlFor="confirmPassword">{t("ConfirmPassword")}</label>
                 <input
                   id="confirmPassword"
                   name="confirmPassword"
@@ -127,11 +129,11 @@ const Adminsignup = ({ isChecked, handleChange }) => {
               </div>
 
               <button type="submit" onClick={createUser.handleSubmit}>
-                Submit
+                {t("Submit")}
               </button>
-              <p className="already-have-account">
+              {/* <p className="already-have-account">
                 Already have an account ? <a href="/admin/login">Login</a>
-              </p>
+              </p> */}
             </form>
           </div>
         </div>

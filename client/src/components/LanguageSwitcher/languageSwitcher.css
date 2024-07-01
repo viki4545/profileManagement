@@ -1,0 +1,13 @@
+.lang-switcher-btn-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-right: 1rem;
+}
+
+.lang-switcher-btn-container > button {
+  padding: 0.5rem;
+  border: 1px solid #3b3b3b;
+  background-color: var(--background-color);
+  color: var(--primary-text-color);
+}

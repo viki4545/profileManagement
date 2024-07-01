@@ -9,7 +9,7 @@ import { useFormik } from "formik";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../../../firebase";
 import { toast, ToastContainer } from "react-toastify";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   collection,
   doc,
@@ -18,10 +18,21 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import useAuth from "../../../custom-hooks/useAuth";
+import {
+  clearError,
+  userProfileByIdThunk,
+} from "../../../redux/features/userSlice/userSlice";
+import { useDispatch, useSelector } from "react-redux";
+import { useTranslation } from "react-i18next";
 
 const Profile = ({ isChecked, handleChange }) => {
   let { id } = useParams();
+  const { t } = useTranslation();
+
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { currentUser } = useAuth();
+
   const [userData, setUserData] = useState({});
   const [isMail, setIsMail] = useState(false);
   const [isPhone, setIsPhone] = useState(false);
@@ -32,23 +43,27 @@ const Profile = ({ isChecked, handleChange }) => {
   const [addInterest, setAddInterest] = useState([]);
   const [imageUrl, setImageUrl] = useState("");
 
+  const error = useSelector((state) => state.rootReducer.userInfo.error);
+
   useEffect(() => {
-    const fetchDataFromFirestore = async () => {
-      const docRef = doc(db, "users", id);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const userDataFromFirestore = docSnap.data();
-        setUserData(userDataFromFirestore);
-        setAddEmail(userDataFromFirestore.emailList || []);
-        setAddPhone(userDataFromFirestore.phoneList || []);
-        setAddInterest(userDataFromFirestore.interest || []);
-        setImageUrl(userDataFromFirestore.image || "");
-      } else {
-        toast.error("No such document!");
-      }
-    };
-    fetchDataFromFirestore();
-  }, [id]);
+    const authToken = localStorage.getItem("authToken");
+    if (!authToken) {
+      navigate("/user/login");
+    } else {
+      dispatch(userProfileByIdThunk(id)).then((data) => {
+        if (data.payload) {
+          const userDataFromFirestore = data.payload;
+          setUserData(userDataFromFirestore);
+          setAddEmail(userDataFromFirestore.emailList || []);
+          setAddPhone(userDataFromFirestore.phoneList || []);
+          setAddInterest(userDataFromFirestore.interest || []);
+          setImageUrl(userDataFromFirestore.image || "");
+        } else {
+          toast.error("No such document!");
+        }
+      });
+    }
+  }, [id, dispatch, navigate]);
 
   const gender = ["Male", "Female", "Others"];
 
@@ -66,8 +81,6 @@ const Profile = ({ isChecked, handleChange }) => {
 
   const phoneRegExp =
     /^((\\+[1-9]{1,4}[ \\-]*)|(\\([0-9]{2,3}\\)[ \\-]*)|([0-9]{2,4})[ \\-]*)*?[0-9]{3,4}?[ \\-]*[0-9]{3,4}?$/;
-
-  console.log(userData);
 
   const userProfile = useFormik({
     enableReinitialize: true,
@@ -103,7 +116,6 @@ const Profile = ({ isChecked, handleChange }) => {
     }),
     onSubmit: async (values) => {
       const profileData = {
-        image: imageUrl,
         firstName: values.firstName,
         lastName: values.lastName,
         gender: values.gender,
@@ -113,8 +125,9 @@ const Profile = ({ isChecked, handleChange }) => {
         emailList: addEmail,
         phoneList: addPhone,
       };
+      userProfile.setFieldValue("dirty", false);
       if (values.image && typeof values.image !== "string") {
-        const storageRef = ref(storage, `profiles/${id}/${values.image}`);
+        const storageRef = ref(storage, `profiles/${id}/${values.image.name}`);
         const uploadTask = uploadBytesResumable(storageRef, values.image);
 
         uploadTask.on(
@@ -142,10 +155,19 @@ const Profile = ({ isChecked, handleChange }) => {
 
   const handleAddonImage = (e) => {
     const file = e.target.files[0];
-    setIfImage(true);
-    setImageUrl(URL.createObjectURL(file));
-    userProfile.setFieldValue("image", file);
+    if (file) {
+      setIfImage(true);
+      setImageUrl(URL.createObjectURL(file));
+      userProfile.setFieldValue("image", file);
+    }
   };
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error.message);
+      dispatch(clearError());
+    }
+  }, [dispatch, error]);
 
   return (
     <>
@@ -155,7 +177,7 @@ const Profile = ({ isChecked, handleChange }) => {
         {/* Desktop */}
         <div className="profile-container">
           <div className="profile-header-container">
-            <p>My Profile</p>
+            <p>{t("MyProfile")}</p>
           </div>
           {/* Desktop */}
           <form onSubmit={userProfile.handleSubmit}>
@@ -201,7 +223,7 @@ const Profile = ({ isChecked, handleChange }) => {
                     </div>
                     <div className="profile-name-container">
                       <div className="profile-first-name-container">
-                        <label htmlFor="firstName">FirstName</label>
+                        <label htmlFor="firstName">{t("FirstName")}</label>
                         <input
                           id="firstName"
                           name="firstName"
@@ -218,7 +240,7 @@ const Profile = ({ isChecked, handleChange }) => {
                         ) : null}
                       </div>
                       <div className="profile-last-name-container">
-                        <label htmlFor="lastName">LastName</label>
+                        <label htmlFor="lastName">{t("LastName")}</label>
                         <input
                           id="lastName"
                           name="lastName"
@@ -238,7 +260,7 @@ const Profile = ({ isChecked, handleChange }) => {
                   </div>
 
                   <div className="profile-email-input-outer-container">
-                    <label htmlFor="email">Email</label>
+                    <label htmlFor="email">{t("Email")}</label>
                     <input
                       id="email"
                       name="email"
@@ -255,7 +277,7 @@ const Profile = ({ isChecked, handleChange }) => {
                   </div>
 
                   <div className="profile-phone-input-outer-container">
-                    <label htmlFor="phone">Phone</label>
+                    <label htmlFor="phone">{t("Phone")}</label>
                     <input
                       id="phone"
                       name="phone"
@@ -272,7 +294,7 @@ const Profile = ({ isChecked, handleChange }) => {
 
                   <div className="profile-gender-container">
                     <div className="profile-gender-header-container">
-                      <p>Gender</p>
+                      <p>{t("Gender")}</p>
                     </div>
                     <div className="profile-gender-content-container">
                       {gender?.map((g) => (
@@ -296,7 +318,7 @@ const Profile = ({ isChecked, handleChange }) => {
                   </div>
                   <div className="profile-interest-container">
                     <div className="profile-interest-header-container">
-                      <p>Interest</p>
+                      <p>{t("Interest")}</p>
                     </div>
                     <div className="profile-interest-content-container">
                       {interest.map((data, key) => (
@@ -345,7 +367,7 @@ const Profile = ({ isChecked, handleChange }) => {
                       value={userProfile.values.country}
                     >
                       <option disabled selected value="">
-                        Select Country
+                        {t("Select Country")}
                       </option>
                       <option value="India">India</option>
                       <option value="USA">USA</option>
@@ -361,7 +383,7 @@ const Profile = ({ isChecked, handleChange }) => {
                         className="profile-email-header-container"
                         onClick={() => setIsMail(!isMail)}
                       >
-                        <p>EmailList</p>
+                        <p>{t("EmailList")}</p>
                         <div className="profile-email-header-icon-container">
                           {!isMail ? <RiArrowUpSLine /> : <RiArrowDownSLine />}
                         </div>
@@ -420,7 +442,7 @@ const Profile = ({ isChecked, handleChange }) => {
                                 setAddEmail([...addEmail, { email: "" }])
                               }
                             >
-                              <p>Add Email +</p>
+                              <p>{t("AddEmail")} +</p>
                             </div>
                           </div>
                         </div>
@@ -431,7 +453,7 @@ const Profile = ({ isChecked, handleChange }) => {
                         className="profile-phone-header-container"
                         onClick={() => setIsPhone(!isPhone)}
                       >
-                        <p>PhoneList</p>
+                        <p>{t("PhoneList")}</p>
                         <div className="profile-phone-header-icon-container">
                           {!isPhone ? <RiArrowUpSLine /> : <RiArrowDownSLine />}
                         </div>
@@ -490,7 +512,7 @@ const Profile = ({ isChecked, handleChange }) => {
                                 setAddPhone([...addPhone, { phone: "" }])
                               }
                             >
-                              <p>Add Phone +</p>
+                              <p>{t("AddPhone")} +</p>
                             </div>
                           </div>
                         </div>
@@ -500,14 +522,14 @@ const Profile = ({ isChecked, handleChange }) => {
                 </div>
               </div>
             </div>
-            <button type="submit">Submit</button>
+            <button type="submit">{t("Submit")}</button>
           </form>
         </div>
 
         {/* Mobile */}
         <div className="profile-mob-container">
           <div className="profile-mob-header-container">
-            <p>My Profile</p>
+            <p>{t("MyProfile")}</p>
           </div>
           <div className="profile-mob-content-container">
             <form onSubmit={userProfile.handleSubmit}>
@@ -549,7 +571,7 @@ const Profile = ({ isChecked, handleChange }) => {
               </div>
               <div className="profile-mob-name-container">
                 <div className="profile-mob-firstname-container">
-                  <label htmlFor="firstName">FirstName</label>
+                  <label htmlFor="firstName">{t("FirstName")}</label>
                   <input
                     id="firstName"
                     name="firstName"
@@ -564,7 +586,7 @@ const Profile = ({ isChecked, handleChange }) => {
                   ) : null}
                 </div>
                 <div className="profile-mob-lastname-container">
-                  <label htmlFor="lastName">LastName</label>
+                  <label htmlFor="lastName">{t("LastName")}</label>
                   <input
                     id="lastName"
                     name="lastName"
@@ -581,7 +603,7 @@ const Profile = ({ isChecked, handleChange }) => {
               </div>
 
               <div className="profile-mob-email-input-outer-container">
-                <label htmlFor="email">Email</label>
+                <label htmlFor="email">{t("Email")}</label>
                 <input
                   id="email"
                   name="email"
@@ -597,7 +619,7 @@ const Profile = ({ isChecked, handleChange }) => {
               </div>
 
               <div className="profile-mob-phone-input-outer-container">
-                <label htmlFor="phone">Phone</label>
+                <label htmlFor="phone">{t("Phone")}</label>
                 <input
                   id="phone"
                   name="phone"
@@ -614,7 +636,7 @@ const Profile = ({ isChecked, handleChange }) => {
 
               <div className="profile-mob-gender-container">
                 <div className="profile-mob-gender-header-container">
-                  <p>Gender</p>
+                  <p>{t("Gender")}</p>
                 </div>
                 <div className="profile-mob-gender-content-container">
                   {gender?.map((g) => (
@@ -639,7 +661,7 @@ const Profile = ({ isChecked, handleChange }) => {
 
               <div className="profile-mob-interest-container">
                 <div className="profile-mob-interest-header-container">
-                  <p>Interest</p>
+                  <p>{t("Interest")}</p>
                 </div>
                 <div className="profile-mob-interest-content-container">
                   {interest.map((data, key) => (
@@ -684,7 +706,7 @@ const Profile = ({ isChecked, handleChange }) => {
                   value={userProfile.values.country}
                 >
                   <option disabled selected value="">
-                    Select Country
+                    {t("Select Country")}
                   </option>
                   <option value="India">India</option>
                   <option value="USA">USA</option>
@@ -701,7 +723,7 @@ const Profile = ({ isChecked, handleChange }) => {
                     className="profile-mob-email-header-container"
                     onClick={() => setIsMail(!isMail)}
                   >
-                    <p>Email List</p>
+                    <p>{t("EmailList")}</p>
                     <div className="profile-mob-email-header-icon-container">
                       {!isMail ? <RiArrowUpSLine /> : <RiArrowDownSLine />}
                     </div>
@@ -760,7 +782,7 @@ const Profile = ({ isChecked, handleChange }) => {
                             setAddEmail([...addEmail, { email: "" }])
                           }
                         >
-                          <p>Add Email +</p>
+                          <p>{t("AddEmail")} +</p>
                         </div>
                       </div>
                     </div>
@@ -771,7 +793,7 @@ const Profile = ({ isChecked, handleChange }) => {
                     className="profile-mob-phone-header-container"
                     onClick={() => setIsPhone(!isPhone)}
                   >
-                    <p>Phone List</p>
+                    <p>{t("PhoneList")}</p>
                     <div className="profile-mob-phone-header-icon-container">
                       {!isPhone ? <RiArrowUpSLine /> : <RiArrowDownSLine />}
                     </div>
@@ -830,7 +852,7 @@ const Profile = ({ isChecked, handleChange }) => {
                             setAddPhone([...addPhone, { phone: "" }])
                           }
                         >
-                          <p>Add Phone +</p>
+                          <p>{t("AddPhone")} +</p>
                         </div>
                       </div>
                     </div>
@@ -839,7 +861,7 @@ const Profile = ({ isChecked, handleChange }) => {
               </div>
 
               <div className="profile-mob-form-submit-container">
-                <button type="submit">Submit</button>
+                <button type="submit">{t("Submit")}</button>
               </div>
             </form>
           </div>

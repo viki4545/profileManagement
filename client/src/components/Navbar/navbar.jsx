@@ -1,61 +1,43 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import "./navbar.css";
 import Toggle from "../Toggle/toggle";
-import { RxHamburgerMenu, RxCross2 } from "react-icons/rx";
+import { RiLogoutBoxRLine } from "react-icons/ri";
 import { useDispatch, useSelector } from "react-redux";
-import useAuth from "../../custom-hooks/useAuth";
+import { logout } from "../../redux/features/userSlice/userSlice";
+import { ToastContainer, toast } from "react-toastify";
+import LanguageSwitcher from "../LanguageSwitcher/languageSwitcher";
 
-const Navbar = ({ isChecked, handleChange, userId }) => {
-  const [isMenu, setIsMenu] = useState(false);
+const Navbar = ({ isChecked, handleChange }) => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
-  const isLogin = useSelector((state) => state.rootReducer.userInfo.isLogin);
+  const authToken = localStorage.getItem("authToken");
 
-  const { currentUser } = useAuth();
-
-  console.log(currentUser);
+  const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    dispatch(logout());
+    navigate("/user/login");
+  };
 
   return (
     <>
+      <ToastContainer />
       <div className="navbar-main-container">
         <div className="navbar-left-container">
           <h1>upliance.ai</h1>
         </div>
         <div className="navbar-right-container">
           <Toggle isChecked={isChecked} handleChange={handleChange} />
-          {isLogin === true ? (
-            <>
-              <a href="">logout</a>
-            </>
-          ) : (
-            <>
-              <a href="/signup">Signup</a>
-              <a href="/login">Login</a>
-            </>
-          )}
+          <LanguageSwitcher />
+          {authToken ? <RiLogoutBoxRLine onClick={handleLogout} /> : ""}
         </div>
         <div className="navbar-mob-toggle-container">
           <Toggle isChecked={isChecked} handleChange={handleChange} />
-        </div>
-        <div
-          className="navbar-ham-icon-container"
-          onClick={() => setIsMenu(!isMenu)}
-        >
-          {isMenu ? <RxCross2 /> : <RxHamburgerMenu />}
+          <LanguageSwitcher />
+          {authToken ? <RiLogoutBoxRLine onClick={handleLogout} /> : ""}
         </div>
       </div>
-      {isMenu && (
-        <div className="navbar-ham-menu-container">
-          {isLogin === true ? (
-            <a href="">logout</a>
-          ) : (
-            <>
-              <a href="/signup">Signup</a>
-              <a href="/login">Login</a>
-            </>
-          )}
-        </div>
-      )}
     </>
   );
 };

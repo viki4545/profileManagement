@@ -1,8 +1,11 @@
 import React, { useState } from "react";
 import "./adminSidebar.css";
 import { RxCross2 } from "react-icons/rx";
+import { useTranslation } from "react-i18next";
 
 const Adminsidebar = ({ handleSidebar }) => {
+  const { t } = useTranslation();
+
   return (
     <>
       <div className="admin-sidebar-main-container">
@@ -13,9 +16,9 @@ const Adminsidebar = ({ handleSidebar }) => {
           <h1>upliance.ai</h1>
         </div>
         <div className="admin-sidebar-link-container">
-          <a href="/admin/dashboard">Dashboard</a>
-          <a href="/admin/users">Users</a>
-          <a href="/admin/access">Adminaccess</a>
+          <a href="/admin/dashboard">{t("Dashboard")}</a>
+          <a href="/admin/users">{t("Users")}</a>
+          <a href="/admin/access">{t("Adminaccess")}</a>
         </div>
       </div>
     </>
