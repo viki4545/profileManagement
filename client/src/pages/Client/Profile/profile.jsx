@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import "./profile.css";
 import Navbar from "../../../components/Navbar/navbar";
 
 import * as Yup from "yup";
 import { RiArrowDownSLine, RiArrowUpSLine } from "react-icons/ri";
 import { RxCross2 } from "react-icons/rx";
-import { useFormik } from "formik";
+import { useFormik, FieldArray, FormikProvider } from "formik";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../../../firebase";
 import { toast, ToastContainer } from "react-toastify";
@@ -13,7 +13,6 @@ import {
   useNavigate,
   useParams,
   useLocation,
-  unstable_HistoryRouter as useHistory,
   useNavigation,
   createBrowserRouter,
   useNavigationType,
@@ -38,6 +37,8 @@ const Profile = ({ isChecked, handleChange }) => {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
+  const prevLocation = useRef(location);
 
   const [userData, setUserData] = useState({});
   const [isMail, setIsMail] = useState(false);
@@ -48,7 +49,6 @@ const Profile = ({ isChecked, handleChange }) => {
   const [addPhone, setAddPhone] = useState([]);
   const [addInterest, setAddInterest] = useState([]);
   const [imageUrl, setImageUrl] = useState("");
-  const [unsavedChanges, setUnsavedChanges] = useState(false);
 
   const error = useSelector((state) => state.rootReducer.userInfo.error);
 
@@ -61,12 +61,13 @@ const Profile = ({ isChecked, handleChange }) => {
         if (data.payload) {
           const userDataFromFirestore = data.payload;
           setUserData(userDataFromFirestore);
-          setAddEmail(userDataFromFirestore.emailList || []);
-          setAddPhone(userDataFromFirestore.phoneList || []);
+          // setAddEmail(userDataFromFirestore.emailList || []);
+          // setAddPhone(userDataFromFirestore.phoneList || []);
           setAddInterest(userDataFromFirestore.interest || []);
           setImageUrl(userDataFromFirestore.image || "");
         } else {
           toast.error("No such document!");
+          navigate("/user/login");
         }
       });
     }
@@ -100,8 +101,8 @@ const Profile = ({ isChecked, handleChange }) => {
       country: userData.country || "",
       email: userData.email,
       phone: userData.phone || "",
-      emailList: addEmail,
-      phoneList: addPhone,
+      emailList: userData.emailList || [{ email: "" }],
+      phoneList: userData.phoneList || [{ phone: "" }],
     },
     validationSchema: Yup.object({
       image: Yup.mixed().required("Required"),
@@ -116,48 +117,54 @@ const Profile = ({ isChecked, handleChange }) => {
         .email("Invalid email")
         .required("Please enter your email"),
       phone: Yup.string()
-        .required("Please enter your phone no")
-        .matches(phoneRegExp, "Phone no is not valid")
+        .matches(phoneRegExp, "Phone number must be 10 digits")
         .min(10, "too short")
-        .max(10, "too long"),
+        .max(10, "too long")
+        .required("Please enter your phone no"),
+      emailList: Yup.array().of(
+        Yup.object().shape({
+          email: Yup.string().email("Invalid email"),
+        })
+      ),
+      phoneList: Yup.array().of(
+        Yup.object().shape({
+          phone: Yup.string()
+            .matches(phoneRegExp, "Phone number must be 10 digits")
+            .min(10, "too short")
+            .max(10, "too long"),
+        })
+      ),
     }),
     onSubmit: async (values) => {
-      const profileData = {
-        firstName: values.firstName,
-        lastName: values.lastName,
-        gender: values.gender,
-        interest: values.interest,
-        country: values.country,
-        phone: values.phone,
-        emailList: addEmail,
-        phoneList: addPhone,
-      };
-      userProfile.setFieldValue("dirty", false);
-      if (values.image && typeof values.image !== "string") {
-        const storageRef = ref(storage, `profiles/${id}/${values.image.name}`);
-        const uploadTask = uploadBytesResumable(storageRef, values.image);
+      try {
+        const profileData = {
+          firstName: values.firstName,
+          lastName: values.lastName,
+          gender: values.gender,
+          interest: values.interest,
+          country: values.country,
+          phone: values.phone,
+          emailList: values.emailList,
+          phoneList: values.phoneList,
+        };
 
-        uploadTask.on(
-          "state_changed",
-          (snapshot) => {},
-          (error) => {
-            toast.error("Failed to upload image");
-          },
-          async () => {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            profileData.image = downloadURL;
-
-            // Update user profile
-            await updateDoc(doc(db, "users", id), profileData);
-            toast.success("Profile updated successfully!");
-            navigate(`/user/profile/${id}`);
+        console.log(profileData);
+        userProfile.setFieldValue("dirty", false);
+        if (image instanceof File) {
+          if (!storage) {
+            throw new Error("Firebase storage is not initialized.");
           }
-        );
-      } else {
-        // Update user profile without new image
+          const storageRef = ref(storage, `profiles/${id}/${image.name}`);
+          const uploadTask = await uploadBytesResumable(storageRef, image);
+          const snapshot = await uploadTask;
+          const downloadURL = await getDownloadURL(snapshot.ref);
+          profileData.image = downloadURL;
+        }
+
         await updateDoc(doc(db, "users", id), profileData);
         toast.success("Profile updated successfully!");
-        navigate(`/user/profile/${id}`);
+      } catch (error) {
+        toast.error("Failed to update profile");
       }
     },
   });
@@ -166,9 +173,9 @@ const Profile = ({ isChecked, handleChange }) => {
     const file = e.target.files[0];
     if (file) {
       setIfImage(true);
+      setImage(file);
       setImageUrl(URL.createObjectURL(file));
       userProfile.setFieldValue("image", file);
-      setUnsavedChanges(true);
     }
   };
 
@@ -181,15 +188,37 @@ const Profile = ({ isChecked, handleChange }) => {
 
   useEffect(() => {
     const handleBeforeUnload = (event) => {
-      event.preventDefault();
-      event.returnValue =
-        "You have unsaved changes. Are you sure you want to leave?";
+      if (userProfile.dirty) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
     };
+
+    const handleRouteChange = () => {
+      if (userProfile.dirty && location !== prevLocation.current) {
+        if (
+          !window.confirm(
+            "You have unsaved changes, do you really want to leave?"
+          )
+        ) {
+          navigate(prevLocation.current.pathname, { replace: true });
+        } else {
+          userProfile.setFieldTouched();
+        }
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    handleRouteChange();
 
     return () => {
       window.addEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [userProfile.dirty]);
+  }, [location, userProfile.dirty, navigate]);
+
+  useEffect(() => {
+    prevLocation.current = location;
+  }, [location]);
 
   return (
     <>
@@ -202,350 +231,402 @@ const Profile = ({ isChecked, handleChange }) => {
             <p>{t("MyProfile")}</p>
           </div>
           {/* Desktop */}
-          <form onSubmit={userProfile.handleSubmit}>
-            <div className="profile-content-container">
-              <div className="profile-left-content-container">
-                <div className="profile-left-content-inner-container">
-                  <div className="profile-img-name-container">
-                    <div className="profile-image-container">
-                      <input
-                        type="file"
-                        name="image"
-                        id="image"
-                        accept="image/*"
-                        onChange={handleAddonImage}
-                        // onBlur={userProfile.handleBlur}
-                        // value={userProfile.values.image}
-                      />
-                      {ifImage ? (
-                        <img
-                          id="blog-image-preview"
-                          src={imageUrl}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            borderRadius: "5px",
-                          }}
-                        />
-                      ) : (
-                        <img
-                          id="blog-image-preview"
-                          src={imageUrl}
-                          alt=""
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            borderRadius: "5px",
-                          }}
-                        />
-                      )}
-                      {userProfile.touched.image && userProfile.errors.image ? (
-                        <div id="input-errors">{userProfile.errors.image}</div>
-                      ) : null}
-                    </div>
-                    <div className="profile-name-container">
-                      <div className="profile-first-name-container">
-                        <label htmlFor="firstName">{t("FirstName")}</label>
+          <FormikProvider value={userProfile}>
+            <form onSubmit={userProfile.handleSubmit}>
+              <div className="profile-content-container">
+                <div className="profile-left-content-container">
+                  <div className="profile-left-content-inner-container">
+                    <div className="profile-img-name-container">
+                      <div className="profile-image-container">
                         <input
-                          id="firstName"
-                          name="firstName"
-                          type="text"
-                          onChange={userProfile.handleChange}
-                          onBlur={userProfile.handleBlur}
-                          value={userProfile.values.firstName}
+                          type="file"
+                          name="image"
+                          id="image"
+                          accept="image/*"
+                          onChange={handleAddonImage}
+                          // onBlur={userProfile.handleBlur}
+                          // value={userProfile.values.image}
                         />
-                        {userProfile.touched.firstName &&
-                        userProfile.errors.firstName ? (
+                        {ifImage ? (
+                          <img
+                            id="blog-image-preview"
+                            src={imageUrl}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              borderRadius: "5px",
+                            }}
+                          />
+                        ) : (
+                          <img
+                            id="blog-image-preview"
+                            src={imageUrl}
+                            alt=""
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              borderRadius: "5px",
+                            }}
+                          />
+                        )}
+                        {userProfile.touched.image &&
+                        userProfile.errors.image ? (
                           <div id="input-errors">
-                            {userProfile.errors.firstName}
+                            {userProfile.errors.image}
                           </div>
                         ) : null}
                       </div>
-                      <div className="profile-last-name-container">
-                        <label htmlFor="lastName">{t("LastName")}</label>
-                        <input
-                          id="lastName"
-                          name="lastName"
-                          type="text"
-                          onChange={userProfile.handleChange}
-                          onBlur={userProfile.handleBlur}
-                          value={userProfile.values.lastName}
-                        />
-                        {userProfile.touched.lastName &&
-                        userProfile.errors.lastName ? (
-                          <div id="input-errors">
-                            {userProfile.errors.lastName}
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="profile-email-input-outer-container">
-                    <label htmlFor="email">{t("Email")}</label>
-                    <input
-                      id="email"
-                      name="email"
-                      type="email"
-                      disabled={true}
-                      placeholder="Enter your email"
-                      onChange={userProfile.handleChange}
-                      onBlur={userProfile.handleBlur}
-                      value={userProfile.values.email}
-                    />
-                    {userProfile.touched.email && userProfile.errors.email ? (
-                      <div id="input-errors">{userProfile.errors.email}</div>
-                    ) : null}
-                  </div>
-
-                  <div className="profile-phone-input-outer-container">
-                    <label htmlFor="phone">{t("Phone")}</label>
-                    <input
-                      id="phone"
-                      name="phone"
-                      type="tel"
-                      placeholder="Enter your phone"
-                      onBlur={userProfile.handleBlur}
-                      onChange={userProfile.handleChange}
-                      value={userProfile.values.phone}
-                    />
-                    {userProfile.touched.phone && userProfile.errors.phone ? (
-                      <div id="input-errors">{userProfile.errors.phone}</div>
-                    ) : null}
-                  </div>
-
-                  <div className="profile-gender-container">
-                    <div className="profile-gender-header-container">
-                      <p>{t("Gender")}</p>
-                    </div>
-                    <div className="profile-gender-content-container">
-                      {gender?.map((g) => (
-                        <div className="profile-gender-content-inner-container">
+                      <div className="profile-name-container">
+                        <div className="profile-first-name-container">
+                          <label htmlFor="firstName">{t("FirstName")}</label>
                           <input
-                            id="gender"
-                            name="gender"
-                            type="radio"
+                            id="firstName"
+                            name="firstName"
+                            type="text"
                             onChange={userProfile.handleChange}
                             onBlur={userProfile.handleBlur}
-                            value={g}
-                            checked={userProfile.values.gender === g}
+                            value={userProfile.values.firstName}
                           />
-                          <label htmlFor={`gender-${g}`}>{g}</label>
+                          {userProfile.touched.firstName &&
+                          userProfile.errors.firstName ? (
+                            <div id="input-errors">
+                              {userProfile.errors.firstName}
+                            </div>
+                          ) : null}
                         </div>
-                      ))}
-                    </div>
-                    {userProfile.touched.gender && userProfile.errors.gender ? (
-                      <div id="input-errors">{userProfile.errors.gender}</div>
-                    ) : null}
-                  </div>
-                  <div className="profile-interest-container">
-                    <div className="profile-interest-header-container">
-                      <p>{t("Interest")}</p>
-                    </div>
-                    <div className="profile-interest-content-container">
-                      {interest.map((data, key) => (
-                        <div
-                          key={key}
-                          className="profile-interest-inner-content-container"
-                        >
+                        <div className="profile-last-name-container">
+                          <label htmlFor="lastName">{t("LastName")}</label>
                           <input
-                            id={`interest-${key}`}
-                            name="interest"
-                            type="checkbox"
-                            onChange={(e) => {
-                              const isChecked = e.target.checked;
-                              const updatedInterest = isChecked
-                                ? [...userProfile.values.interest, data]
-                                : userProfile.values.interest.filter(
-                                    (item) => item !== data
-                                  );
-                              userProfile.setFieldValue(
-                                "interest",
-                                updatedInterest
-                              );
-                            }}
+                            id="lastName"
+                            name="lastName"
+                            type="text"
+                            onChange={userProfile.handleChange}
                             onBlur={userProfile.handleBlur}
-                            checked={userProfile.values.interest.includes(data)}
+                            value={userProfile.values.lastName}
                           />
-                          <label htmlFor={`interest-${key}`}>{data}</label>
-                        </div>
-                      ))}
-                    </div>
-                    {userProfile.touched.interest &&
-                    userProfile.errors.interest ? (
-                      <div id="input-errors">{userProfile.errors.interest}</div>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-              <div className="profile-right-content-container">
-                <div className="profile-right-content-inner-container">
-                  <div className="profile-country-container">
-                    <select
-                      name="country"
-                      id="country"
-                      onChange={userProfile.handleChange}
-                      onBlur={userProfile.handleBlur}
-                      value={userProfile.values.country}
-                    >
-                      <option disabled selected value="">
-                        {t("Select Country")}
-                      </option>
-                      <option value="India">India</option>
-                      <option value="USA">USA</option>
-                      <option value="Singapore">Singapore</option>
-                      <option value="UAE">UAE</option>
-                      <option value="Spain">Spain</option>
-                      <option value="Japan">Japan</option>
-                    </select>
-                  </div>
-                  <div className="profile-email-phone-container">
-                    <div className="profile-email-container">
-                      <div
-                        className="profile-email-header-container"
-                        onClick={() => setIsMail(!isMail)}
-                      >
-                        <p>{t("EmailList")}</p>
-                        <div className="profile-email-header-icon-container">
-                          {!isMail ? <RiArrowUpSLine /> : <RiArrowDownSLine />}
+                          {userProfile.touched.lastName &&
+                          userProfile.errors.lastName ? (
+                            <div id="input-errors">
+                              {userProfile.errors.lastName}
+                            </div>
+                          ) : null}
                         </div>
                       </div>
-                      {!isMail && (
-                        <div className="profile-email-content-container">
-                          <div className="profile-email-scroll-container">
-                            {addEmail.map((data, idx) => (
-                              <div
-                                key={idx}
-                                className="profile-email-input-container"
-                              >
-                                <div className="profile-email-input-inner-container">
-                                  <input
-                                    id={`email-${idx}`}
-                                    name={`email-${idx}`}
-                                    type="email"
-                                    placeholder="Enter your email"
-                                    onBlur={userProfile.handleBlur}
-                                    value={data.email}
-                                    onChange={(e) =>
-                                      setAddEmail(
-                                        addEmail.map((elm, index) =>
-                                          index === idx
-                                            ? { email: e.target.value }
-                                            : elm
-                                        )
-                                      )
-                                    }
-                                  />
-                                  <div
-                                    className="profile-email-input-icon-container"
-                                    onClick={() =>
-                                      setAddEmail(
-                                        addEmail.filter(
-                                          (elm, index) => idx != index
-                                        )
-                                      )
-                                    }
-                                  >
-                                    <RxCross2 />
-                                  </div>
-                                </div>
-                                {userProfile.touched.email &&
-                                userProfile.errors.email ? (
-                                  <div id="input-errors">
-                                    {userProfile.errors.email}
-                                  </div>
-                                ) : null}
-                              </div>
-                            ))}
-
-                            <div
-                              className="profile-add-email-button-container"
-                              onClick={() =>
-                                setAddEmail([...addEmail, { email: "" }])
-                              }
-                            >
-                              <p>{t("AddEmail")} +</p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </div>
-                    <div className="profile-phone-container">
-                      <div
-                        className="profile-phone-header-container"
-                        onClick={() => setIsPhone(!isPhone)}
-                      >
-                        <p>{t("PhoneList")}</p>
-                        <div className="profile-phone-header-icon-container">
-                          {!isPhone ? <RiArrowUpSLine /> : <RiArrowDownSLine />}
-                        </div>
-                      </div>
-                      {!isPhone && (
-                        <div className="profile-phone-content-container">
-                          <div className="profile-phone-scroll-container">
-                            {addPhone.map((data, idx) => (
-                              <div
-                                key={idx}
-                                className="profile-phone-input-container"
-                              >
-                                <div className="profile-phone-input-inner-container">
-                                  <input
-                                    id={`phone-${idx}`}
-                                    name={`phone-${idx}`}
-                                    type="tel"
-                                    placeholder="Enter your phone"
-                                    onBlur={userProfile.handleBlur}
-                                    value={data.phone}
-                                    onChange={(e) =>
-                                      setAddPhone(
-                                        addPhone.map((elm, index) =>
-                                          index === idx
-                                            ? { phone: e.target.value }
-                                            : elm
-                                        )
-                                      )
-                                    }
-                                  />
-                                  <div
-                                    className="profile-phone-input-icon-container"
-                                    onClick={() =>
-                                      setAddPhone(
-                                        addPhone.filter(
-                                          (elm, index) => idx != index
-                                        )
-                                      )
-                                    }
-                                  >
-                                    <RxCross2 />
-                                  </div>
-                                </div>
-                                {userProfile.touched.phone &&
-                                userProfile.errors.phone ? (
-                                  <div id="input-errors">
-                                    {userProfile.errors.phone}
-                                  </div>
-                                ) : null}
-                              </div>
-                            ))}
 
-                            <div
-                              className="profile-add-phone-button-container"
-                              onClick={() =>
-                                setAddPhone([...addPhone, { phone: "" }])
-                              }
-                            >
-                              <p>{t("AddPhone")} +</p>
-                            </div>
+                    <div className="profile-email-input-outer-container">
+                      <label htmlFor="email">{t("Email")}</label>
+                      <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        disabled={true}
+                        placeholder="Enter your email"
+                        onChange={userProfile.handleChange}
+                        onBlur={userProfile.handleBlur}
+                        value={userProfile.values.email}
+                      />
+                      {userProfile.touched.email && userProfile.errors.email ? (
+                        <div id="input-errors">{userProfile.errors.email}</div>
+                      ) : null}
+                    </div>
+
+                    <div className="profile-phone-input-outer-container">
+                      <label htmlFor="phone">{t("Phone")}</label>
+                      <input
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        maxLength={10}
+                        minLength={10}
+                        placeholder="Enter your phone"
+                        onBlur={userProfile.handleBlur}
+                        onChange={userProfile.handleChange}
+                        value={userProfile.values.phone}
+                      />
+                      {userProfile.touched.phone && userProfile.errors.phone ? (
+                        <div id="input-errors">{userProfile.errors.phone}</div>
+                      ) : null}
+                    </div>
+
+                    <div className="profile-gender-container">
+                      <div className="profile-gender-header-container">
+                        <p>{t("Gender")}</p>
+                      </div>
+                      <div className="profile-gender-content-container">
+                        {gender?.map((g) => (
+                          <div className="profile-gender-content-inner-container">
+                            <input
+                              id="gender"
+                              name="gender"
+                              type="radio"
+                              onChange={userProfile.handleChange}
+                              onBlur={userProfile.handleBlur}
+                              value={g}
+                              checked={userProfile.values.gender === g}
+                            />
+                            <label htmlFor={`gender-${g}`}>{g}</label>
                           </div>
+                        ))}
+                      </div>
+                      {userProfile.touched.gender &&
+                      userProfile.errors.gender ? (
+                        <div id="input-errors">{userProfile.errors.gender}</div>
+                      ) : null}
+                    </div>
+                    <div className="profile-interest-container">
+                      <div className="profile-interest-header-container">
+                        <p>{t("Interest")}</p>
+                      </div>
+                      <div className="profile-interest-content-container">
+                        {interest.map((data, key) => (
+                          <div
+                            key={key}
+                            className="profile-interest-inner-content-container"
+                          >
+                            <input
+                              id={`interest-${key}`}
+                              name="interest"
+                              type="checkbox"
+                              onChange={(e) => {
+                                const isChecked = e.target.checked;
+                                const updatedInterest = isChecked
+                                  ? [...userProfile.values.interest, data]
+                                  : userProfile.values.interest.filter(
+                                      (item) => item !== data
+                                    );
+                                userProfile.setFieldValue(
+                                  "interest",
+                                  updatedInterest
+                                );
+                              }}
+                              onBlur={userProfile.handleBlur}
+                              checked={userProfile.values.interest.includes(
+                                data
+                              )}
+                            />
+                            <label htmlFor={`interest-${key}`}>{data}</label>
+                          </div>
+                        ))}
+                      </div>
+                      {userProfile.touched.interest &&
+                      userProfile.errors.interest ? (
+                        <div id="input-errors">
+                          {userProfile.errors.interest}
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 </div>
+                <div className="profile-right-content-container">
+                  <div className="profile-right-content-inner-container">
+                    <div className="profile-country-container">
+                      <select
+                        name="country"
+                        id="country"
+                        onChange={userProfile.handleChange}
+                        onBlur={userProfile.handleBlur}
+                        value={userProfile.values.country}
+                      >
+                        <option disabled selected value="">
+                          {t("Select Country")}
+                        </option>
+                        <option value="India">India</option>
+                        <option value="USA">USA</option>
+                        <option value="Singapore">Singapore</option>
+                        <option value="UAE">UAE</option>
+                        <option value="Spain">Spain</option>
+                        <option value="Japan">Japan</option>
+                      </select>
+                    </div>
+                    <div className="profile-email-phone-container">
+                      <div className="profile-email-container">
+                        <div
+                          className="profile-email-header-container"
+                          style={{
+                            borderBottomLeftRadius: !isMail ? "0" : "5px",
+                            borderBottomRightRadius: !isMail ? "0" : "5px",
+                          }}
+                          onClick={() => setIsMail(!isMail)}
+                        >
+                          <p>{t("EmailList")}</p>
+                          <div className="profile-email-header-icon-container">
+                            {!isMail ? (
+                              <RiArrowUpSLine />
+                            ) : (
+                              <RiArrowDownSLine />
+                            )}
+                          </div>
+                        </div>
+                        {!isMail && (
+                          <div className="profile-email-content-container">
+                            <div className="profile-email-scroll-container">
+                              <FieldArray
+                                name="emailList"
+                                render={(arryHelpers) => (
+                                  <>
+                                    <div style={{ width: "100%" }}>
+                                      {userProfile.values.emailList.map(
+                                        (email, idx) => (
+                                          <div
+                                            key={idx}
+                                            className="profile-email-input-container"
+                                          >
+                                            <div className="profile-email-input-inner-container">
+                                              <input
+                                                id={`emailList.${idx}.email`}
+                                                name={`emailList.${idx}.email`}
+                                                type="email"
+                                                placeholder="Enter your email"
+                                                onBlur={userProfile.handleBlur}
+                                                value={email.email}
+                                                onChange={
+                                                  userProfile.handleChange
+                                                }
+                                              />
+                                              <div
+                                                className="profile-email-input-icon-container"
+                                                onClick={() =>
+                                                  arryHelpers.remove(idx)
+                                                }
+                                              >
+                                                <RxCross2 />
+                                              </div>
+                                            </div>
+                                            {userProfile.touched.emailList &&
+                                            userProfile.touched.emailList[
+                                              idx
+                                            ] &&
+                                            userProfile.errors.emailList &&
+                                            userProfile.errors.emailList[
+                                              idx
+                                            ] ? (
+                                              <div id="input-errors">
+                                                {
+                                                  userProfile.errors.emailList[
+                                                    idx
+                                                  ].email
+                                                }
+                                              </div>
+                                            ) : null}
+                                          </div>
+                                        )
+                                      )}
+                                    </div>
+                                    <div
+                                      className="profile-add-email-button-container"
+                                      onClick={() =>
+                                        arryHelpers.push({ email: "" })
+                                      }
+                                    >
+                                      <p>{t("AddEmail")} +</p>
+                                    </div>
+                                  </>
+                                )}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="profile-phone-container">
+                        <div
+                          className="profile-phone-header-container"
+                          style={{
+                            borderBottomLeftRadius: !isPhone ? "0" : "5px",
+                            borderBottomRightRadius: !isPhone ? "0" : "5px",
+                          }}
+                          onClick={() => setIsPhone(!isPhone)}
+                        >
+                          <p>{t("PhoneList")}</p>
+                          <div className="profile-phone-header-icon-container">
+                            {!isPhone ? (
+                              <RiArrowUpSLine />
+                            ) : (
+                              <RiArrowDownSLine />
+                            )}
+                          </div>
+                        </div>
+                        {!isPhone && (
+                          <div className="profile-phone-content-container">
+                            <div className="profile-phone-scroll-container">
+                              <FieldArray
+                                name="phoneList"
+                                render={(arryHelpers) => (
+                                  <>
+                                    <div style={{ width: "100%" }}>
+                                      {userProfile.values.phoneList.map(
+                                        (phone, idx) => (
+                                          <div
+                                            key={idx}
+                                            className="profile-phone-input-container"
+                                          >
+                                            <div className="profile-phone-input-inner-container">
+                                              <input
+                                                id={`phoneList.${idx}.phone`}
+                                                name={`phoneList.${idx}.phone`}
+                                                type="tel"
+                                                maxLength={10}
+                                                minLength={10}
+                                                placeholder="Enter your phone"
+                                                onBlur={userProfile.handleBlur}
+                                                value={phone.phone}
+                                                onChange={
+                                                  userProfile.handleChange
+                                                }
+                                              />
+                                              <div
+                                                className="profile-phone-input-icon-container"
+                                                onClick={() =>
+                                                  arryHelpers.remove(idx)
+                                                }
+                                              >
+                                                <RxCross2 />
+                                              </div>
+                                            </div>
+                                            {userProfile.touched.phoneList &&
+                                            userProfile.touched.phoneList[
+                                              idx
+                                            ] &&
+                                            userProfile.errors.phoneList &&
+                                            userProfile.errors.phoneList[
+                                              idx
+                                            ] ? (
+                                              <div id="input-errors">
+                                                {
+                                                  userProfile.errors.phoneList[
+                                                    idx
+                                                  ].phone
+                                                }
+                                              </div>
+                                            ) : null}
+                                          </div>
+                                        )
+                                      )}
+                                    </div>
+                                    <div
+                                      className="profile-add-phone-button-container"
+                                      onClick={() =>
+                                        arryHelpers.push({ phone: "" })
+                                      }
+                                    >
+                                      <p>{t("AddPhone")} +</p>
+                                    </div>
+                                  </>
+                                )}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-            <button type="submit">{t("Submit")}</button>
-          </form>
+              <button type="submit" onClick={userProfile.handleSubmit}>
+                {t("Submit")}
+              </button>
+            </form>
+          </FormikProvider>
         </div>
 
         {/* Mobile */}
@@ -554,206 +635,215 @@ const Profile = ({ isChecked, handleChange }) => {
             <p>{t("MyProfile")}</p>
           </div>
           <div className="profile-mob-content-container">
-            <form onSubmit={userProfile.handleSubmit}>
-              <div className="profile-mob-img-container">
-                <input
-                  type="file"
-                  name="image"
-                  id="image"
-                  accept="image/*"
-                  onChange={handleAddonImage}
-                  // onBlur={userProfile.handleBlur}
-                  // value={userProfile.values.image}
-                />
-                {ifImage ? (
-                  <img
-                    id="blog-image-preview"
-                    src={imageUrl}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      borderRadius: "5px",
-                    }}
-                  />
-                ) : (
-                  <img
-                    id="blog-image-preview"
-                    src={imageUrl}
-                    alt=""
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      borderRadius: "5px",
-                    }}
-                  />
-                )}
-                {userProfile.touched.image && userProfile.errors.image ? (
-                  <div id="input-errors">{userProfile.errors.image}</div>
-                ) : null}
-              </div>
-              <div className="profile-mob-name-container">
-                <div className="profile-mob-firstname-container">
-                  <label htmlFor="firstName">{t("FirstName")}</label>
+            <FormikProvider value={userProfile}>
+              <form onSubmit={userProfile.handleSubmit}>
+                <div className="profile-mob-img-container">
                   <input
-                    id="firstName"
-                    name="firstName"
-                    type="firstName"
-                    onChange={userProfile.handleChange}
-                    onBlur={userProfile.handleBlur}
-                    value={userProfile.values.firstName}
+                    type="file"
+                    name="image"
+                    id="image"
+                    accept="image/*"
+                    onChange={handleAddonImage}
+                    // onBlur={userProfile.handleBlur}
+                    // value={userProfile.values.image}
                   />
-                  {userProfile.touched.firstName &&
-                  userProfile.errors.firstName ? (
-                    <div id="input-errors">{userProfile.errors.firstName}</div>
+                  {ifImage ? (
+                    <img
+                      id="blog-image-preview"
+                      src={imageUrl}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        borderRadius: "5px",
+                      }}
+                    />
+                  ) : (
+                    <img
+                      id="blog-image-preview"
+                      src={imageUrl}
+                      alt=""
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        borderRadius: "5px",
+                      }}
+                    />
+                  )}
+                  {userProfile.touched.image && userProfile.errors.image ? (
+                    <div id="input-errors">{userProfile.errors.image}</div>
                   ) : null}
                 </div>
-                <div className="profile-mob-lastname-container">
-                  <label htmlFor="lastName">{t("LastName")}</label>
-                  <input
-                    id="lastName"
-                    name="lastName"
-                    type="lastName"
-                    onChange={userProfile.handleChange}
-                    onBlur={userProfile.handleBlur}
-                    value={userProfile.values.lastName}
-                  />
-                  {userProfile.touched.lastName &&
-                  userProfile.errors.lastName ? (
-                    <div id="input-errors">{userProfile.errors.lastName}</div>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="profile-mob-email-input-outer-container">
-                <label htmlFor="email">{t("Email")}</label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  onChange={userProfile.handleChange}
-                  onBlur={userProfile.handleBlur}
-                  value={userProfile.values.email}
-                />
-                {userProfile.touched.email && userProfile.errors.email ? (
-                  <div id="input-errors">{userProfile.errors.email}</div>
-                ) : null}
-              </div>
-
-              <div className="profile-mob-phone-input-outer-container">
-                <label htmlFor="phone">{t("Phone")}</label>
-                <input
-                  id="phone"
-                  name="phone"
-                  type="phone"
-                  placeholder="Enter your phone"
-                  onBlur={userProfile.handleBlur}
-                  value={userProfile.values.phone}
-                  onChange={userProfile.handleChange}
-                />
-                {userProfile.touched.phone && userProfile.errors.phone ? (
-                  <div id="input-errors">{userProfile.errors.phone}</div>
-                ) : null}
-              </div>
-
-              <div className="profile-mob-gender-container">
-                <div className="profile-mob-gender-header-container">
-                  <p>{t("Gender")}</p>
-                </div>
-                <div className="profile-mob-gender-content-container">
-                  {gender?.map((g) => (
-                    <div className="profile-mob-gender-content-inner-container">
-                      <input
-                        id="gender"
-                        name="gender"
-                        type="radio"
-                        onChange={userProfile.handleChange}
-                        onBlur={userProfile.handleBlur}
-                        value={g}
-                        checked={userProfile.values.gender === g}
-                      />
-                      <label htmlFor={`gender-${g}`}>{g}</label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {userProfile.touched.gender && userProfile.errors.gender ? (
-                <div id="input-errors">{userProfile.errors.gender}</div>
-              ) : null}
-
-              <div className="profile-mob-interest-container">
-                <div className="profile-mob-interest-header-container">
-                  <p>{t("Interest")}</p>
-                </div>
-                <div className="profile-mob-interest-content-container">
-                  {interest.map((data, key) => (
-                    <div
-                      key={key}
-                      className="profile-mob-interest-inner-content-container"
-                    >
-                      <input
-                        id={`interest-${key}`}
-                        name="interest"
-                        type="checkbox"
-                        onChange={(e) => {
-                          const isChecked = e.target.checked;
-                          const updatedInterest = isChecked
-                            ? [...userProfile.values.interest, data]
-                            : userProfile.values.interest.filter(
-                                (item) => item !== data
-                              );
-                          userProfile.setFieldValue(
-                            "interest",
-                            updatedInterest
-                          );
-                        }}
-                        onBlur={userProfile.handleBlur}
-                        checked={userProfile.values.interest.includes(data)}
-                      />
-                      <label htmlFor={`interest-${key}`}>{data}</label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {userProfile.touched.interest && userProfile.errors.interest ? (
-                <div id="input-errors">{userProfile.errors.interest}</div>
-              ) : null}
-
-              <div className="profile-country-container">
-                <select
-                  name="country"
-                  id="country"
-                  onChange={userProfile.handleChange}
-                  onBlur={userProfile.handleBlur}
-                  value={userProfile.values.country}
-                >
-                  <option disabled selected value="">
-                    {t("Select Country")}
-                  </option>
-                  <option value="India">India</option>
-                  <option value="USA">USA</option>
-                  <option value="Singapore">Singapore</option>
-                  <option value="UAE">UAE</option>
-                  <option value="Spain">Spain</option>
-                  <option value="Japan">Japan</option>
-                </select>
-              </div>
-
-              <div className="profile-mob-email-phone-container">
-                <div className="profile-mob-email-container">
-                  <div
-                    className="profile-mob-email-header-container"
-                    onClick={() => setIsMail(!isMail)}
-                  >
-                    <p>{t("EmailList")}</p>
-                    <div className="profile-mob-email-header-icon-container">
-                      {!isMail ? <RiArrowUpSLine /> : <RiArrowDownSLine />}
-                    </div>
+                <div className="profile-mob-name-container">
+                  <div className="profile-mob-firstname-container">
+                    <label htmlFor="firstName">{t("FirstName")}</label>
+                    <input
+                      id="firstName"
+                      name="firstName"
+                      type="firstName"
+                      onChange={userProfile.handleChange}
+                      onBlur={userProfile.handleBlur}
+                      value={userProfile.values.firstName}
+                    />
+                    {userProfile.touched.firstName &&
+                    userProfile.errors.firstName ? (
+                      <div id="input-errors">
+                        {userProfile.errors.firstName}
+                      </div>
+                    ) : null}
                   </div>
-                  {!isMail && (
-                    <div className="profile-mob-email-content-container">
-                      <div className="profile-mob-email-scroll-container">
-                        {addEmail.map((data, idx) => (
+                  <div className="profile-mob-lastname-container">
+                    <label htmlFor="lastName">{t("LastName")}</label>
+                    <input
+                      id="lastName"
+                      name="lastName"
+                      type="lastName"
+                      onChange={userProfile.handleChange}
+                      onBlur={userProfile.handleBlur}
+                      value={userProfile.values.lastName}
+                    />
+                    {userProfile.touched.lastName &&
+                    userProfile.errors.lastName ? (
+                      <div id="input-errors">{userProfile.errors.lastName}</div>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="profile-mob-email-input-outer-container">
+                  <label htmlFor="email">{t("Email")}</label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    onChange={userProfile.handleChange}
+                    onBlur={userProfile.handleBlur}
+                    value={userProfile.values.email}
+                  />
+                  {userProfile.touched.email && userProfile.errors.email ? (
+                    <div id="input-errors">{userProfile.errors.email}</div>
+                  ) : null}
+                </div>
+
+                <div className="profile-mob-phone-input-outer-container">
+                  <label htmlFor="phone">{t("Phone")}</label>
+                  <input
+                    id="phone"
+                    name="phone"
+                    type="phone"
+                    maxLength={10}
+                    minLength={10}
+                    placeholder="Enter your phone"
+                    onBlur={userProfile.handleBlur}
+                    value={userProfile.values.phone}
+                    onChange={userProfile.handleChange}
+                  />
+                  {userProfile.touched.phone && userProfile.errors.phone ? (
+                    <div id="input-errors">{userProfile.errors.phone}</div>
+                  ) : null}
+                </div>
+
+                <div className="profile-mob-gender-container">
+                  <div className="profile-mob-gender-header-container">
+                    <p>{t("Gender")}</p>
+                  </div>
+                  <div className="profile-mob-gender-content-container">
+                    {gender?.map((g) => (
+                      <div className="profile-mob-gender-content-inner-container">
+                        <input
+                          id="gender"
+                          name="gender"
+                          type="radio"
+                          onChange={userProfile.handleChange}
+                          onBlur={userProfile.handleBlur}
+                          value={g}
+                          checked={userProfile.values.gender === g}
+                        />
+                        <label htmlFor={`gender-${g}`}>{g}</label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {userProfile.touched.gender && userProfile.errors.gender ? (
+                  <div id="input-errors">{userProfile.errors.gender}</div>
+                ) : null}
+
+                <div className="profile-mob-interest-container">
+                  <div className="profile-mob-interest-header-container">
+                    <p>{t("Interest")}</p>
+                  </div>
+                  <div className="profile-mob-interest-content-container">
+                    {interest.map((data, key) => (
+                      <div
+                        key={key}
+                        className="profile-mob-interest-inner-content-container"
+                      >
+                        <input
+                          id={`interest-${key}`}
+                          name="interest"
+                          type="checkbox"
+                          onChange={(e) => {
+                            const isChecked = e.target.checked;
+                            const updatedInterest = isChecked
+                              ? [...userProfile.values.interest, data]
+                              : userProfile.values.interest.filter(
+                                  (item) => item !== data
+                                );
+                            userProfile.setFieldValue(
+                              "interest",
+                              updatedInterest
+                            );
+                          }}
+                          onBlur={userProfile.handleBlur}
+                          checked={userProfile.values.interest.includes(data)}
+                        />
+                        <label htmlFor={`interest-${key}`}>{data}</label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {userProfile.touched.interest && userProfile.errors.interest ? (
+                  <div id="input-errors">{userProfile.errors.interest}</div>
+                ) : null}
+
+                <div className="profile-country-container">
+                  <select
+                    name="country"
+                    id="country"
+                    onChange={userProfile.handleChange}
+                    onBlur={userProfile.handleBlur}
+                    value={userProfile.values.country}
+                  >
+                    <option disabled selected value="">
+                      {t("Select Country")}
+                    </option>
+                    <option value="India">India</option>
+                    <option value="USA">USA</option>
+                    <option value="Singapore">Singapore</option>
+                    <option value="UAE">UAE</option>
+                    <option value="Spain">Spain</option>
+                    <option value="Japan">Japan</option>
+                  </select>
+                </div>
+
+                <div className="profile-mob-email-phone-container">
+                  <div className="profile-mob-email-container">
+                    <div
+                      className="profile-mob-email-header-container"
+                      style={{
+                        borderBottomLeftRadius: !isMail ? "0" : "5px",
+                        borderBottomRightRadius: !isMail ? "0" : "5px",
+                      }}
+                      onClick={() => setIsMail(!isMail)}
+                    >
+                      <p>{t("EmailList")}</p>
+                      <div className="profile-mob-email-header-icon-container">
+                        {!isMail ? <RiArrowUpSLine /> : <RiArrowDownSLine />}
+                      </div>
+                    </div>
+                    {!isMail && (
+                      <div className="profile-mob-email-content-container">
+                        <div className="profile-mob-email-scroll-container">
+                          {/* {addEmail.map((data, idx) => (
                           <div
                             key={idx}
                             className="profile-mob-email-input-container"
@@ -805,25 +895,86 @@ const Profile = ({ isChecked, handleChange }) => {
                           }
                         >
                           <p>{t("AddEmail")} +</p>
+                        </div> */}
+
+                          <FieldArray
+                            name="emailList"
+                            render={(arryHelpers) => (
+                              <>
+                                <div style={{ width: "100%" }}>
+                                  {userProfile.values.emailList.map(
+                                    (email, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="profile-mob-email-input-container"
+                                      >
+                                        <div className="profile-mob-email-input-inner-container">
+                                          <input
+                                            id={`emailList.${idx}.email`}
+                                            name={`emailList.${idx}.email`}
+                                            type="email"
+                                            placeholder="Enter your email"
+                                            onBlur={userProfile.handleBlur}
+                                            value={email.email}
+                                            onChange={userProfile.handleChange}
+                                          />
+                                          <div
+                                            className="profile-mob-email-input-icon-container"
+                                            onClick={() =>
+                                              arryHelpers.remove(idx)
+                                            }
+                                          >
+                                            <RxCross2 />
+                                          </div>
+                                        </div>
+                                        {userProfile.touched.emailList &&
+                                        userProfile.touched.emailList[idx] &&
+                                        userProfile.errors.emailList &&
+                                        userProfile.errors.emailList[idx] ? (
+                                          <div id="input-errors">
+                                            {
+                                              userProfile.errors.emailList[idx]
+                                                .email
+                                            }
+                                          </div>
+                                        ) : null}
+                                      </div>
+                                    )
+                                  )}
+                                </div>
+                                <div
+                                  className="profile-mob-add-email-button-container"
+                                  onClick={() =>
+                                    arryHelpers.push({ email: "" })
+                                  }
+                                >
+                                  <p>{t("AddEmail")} +</p>
+                                </div>
+                              </>
+                            )}
+                          />
                         </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-                <div className="profile-mob-phone-container">
-                  <div
-                    className="profile-mob-phone-header-container"
-                    onClick={() => setIsPhone(!isPhone)}
-                  >
-                    <p>{t("PhoneList")}</p>
-                    <div className="profile-mob-phone-header-icon-container">
-                      {!isPhone ? <RiArrowUpSLine /> : <RiArrowDownSLine />}
-                    </div>
+                    )}
                   </div>
-                  {!isPhone && (
-                    <div className="profile-mob-phone-content-container">
-                      <div className="profile-mob-phone-scroll-container">
-                        {addPhone.map((data, idx) => (
+                  <div className="profile-mob-phone-container">
+                    <div
+                      className="profile-mob-phone-header-container"
+                      style={{
+                        borderBottomLeftRadius: !isPhone ? "0" : "5px",
+                        borderBottomRightRadius: !isPhone ? "0" : "5px",
+                      }}
+                      onClick={() => setIsPhone(!isPhone)}
+                    >
+                      <p>{t("PhoneList")}</p>
+                      <div className="profile-mob-phone-header-icon-container">
+                        {!isPhone ? <RiArrowUpSLine /> : <RiArrowDownSLine />}
+                      </div>
+                    </div>
+                    {!isPhone && (
+                      <div className="profile-mob-phone-content-container">
+                        <div className="profile-mob-phone-scroll-container">
+                          {/* {addPhone.map((data, idx) => (
                           <div
                             key={idx}
                             className="profile-mob-phone-input-container"
@@ -834,6 +985,8 @@ const Profile = ({ isChecked, handleChange }) => {
                                 name={`phone-${idx}`}
                                 type="tel"
                                 placeholder="Enter your phone"
+                                maxLength={10}
+                                minLength={10}
                                 onBlur={userProfile.handleBlur}
                                 value={data.phone}
                                 onChange={(e) =>
@@ -875,17 +1028,78 @@ const Profile = ({ isChecked, handleChange }) => {
                           }
                         >
                           <p>{t("AddPhone")} +</p>
+                        </div> */}
+                          <FieldArray
+                            name="phoneList"
+                            render={(arryHelpers) => (
+                              <>
+                                <div style={{ width: "100%" }}>
+                                  {userProfile.values.phoneList.map(
+                                    (phone, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="profile-mob-phone-input-container"
+                                      >
+                                        <div className="profile-mob-phone-input-inner-container">
+                                          <input
+                                            id={`phoneList.${idx}.phone`}
+                                            name={`phoneList.${idx}.phone`}
+                                            type="tel"
+                                            maxLength={10}
+                                            minLength={10}
+                                            placeholder="Enter your phone"
+                                            onBlur={userProfile.handleBlur}
+                                            value={phone.phone}
+                                            onChange={userProfile.handleChange}
+                                          />
+                                          <div
+                                            className="profile-mob-phone-input-icon-container"
+                                            onClick={() =>
+                                              arryHelpers.remove(idx)
+                                            }
+                                          >
+                                            <RxCross2 />
+                                          </div>
+                                        </div>
+                                        {userProfile.touched.phoneList &&
+                                        userProfile.touched.phoneList[idx] &&
+                                        userProfile.errors.phoneList &&
+                                        userProfile.errors.phoneList[idx] ? (
+                                          <div id="input-errors">
+                                            {
+                                              userProfile.errors.phoneList[idx]
+                                                .phone
+                                            }
+                                          </div>
+                                        ) : null}
+                                      </div>
+                                    )
+                                  )}
+                                </div>
+                                <div
+                                  className="profile-mob-add-phone-button-container"
+                                  onClick={() =>
+                                    arryHelpers.push({ phone: "" })
+                                  }
+                                >
+                                  <p>{t("AddPhone")} +</p>
+                                </div>
+                              </>
+                            )}
+                          />
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div className="profile-mob-form-submit-container">
-                <button type="submit">{t("Submit")}</button>
-              </div>
-            </form>
+                <div className="profile-mob-form-submit-container">
+                  <button type="submit" onSubmit={userProfile.handleSubmit}>
+                    {t("Submit")}
+                  </button>
+                </div>
+              </form>
+            </FormikProvider>
           </div>
         </div>
       </div>

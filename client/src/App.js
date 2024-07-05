@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import useLocalStorage from "use-local-storage";
 import "./App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Signup from "./pages/Client/Signup/signup.jsx";
 import Login from "./pages/Client/Login/login.jsx";
 import Profile from "./pages/Client/Profile/profile.jsx";
@@ -22,6 +22,8 @@ function App() {
     <div className="App" data-theme={isDark ? "dark" : "light"}>
       <BrowserRouter>
         <Routes>
+          <Route path="*" element={<Navigate to="/user/login" />} />
+          <Route path="/" element={<Navigate to="/user/login" />} />
           <Route
             path="/user/login"
             element={

@@ -378,6 +378,7 @@ const Userdetails = ({ isChecked, handleChange }) => {
                   type="phone"
                   placeholder="Enter your phone"
                   onChange={userData.handleChange}
+                  value={userData.phone}
                   disabled
                 />
               </div>
@@ -501,9 +502,9 @@ const Userdetails = ({ isChecked, handleChange }) => {
                 </div>
               </div>
 
-              <div className="profile-mob-form-submit-container">
-                {/* <button type="submit">Submit</button> */}
-              </div>
+              {/* <div className="profile-mob-form-submit-container">
+                <button type="submit">Submit</button>
+              </div> */}
             </form>
           </div>
         </div>

@@ -513,7 +513,7 @@
     align-items: center;
     gap: 1.5rem;
     font-size: 1rem;
-    margin-top: 56rem;
+    margin-top: 66rem;
   }
 
   .profile-mob-img-container {
@@ -575,7 +575,7 @@
   }
 
   .profile-mob-form-submit-container {
-    display: none;
+    display: flex;
     justify-content: center;
     align-items: center;
     width: 100%;
