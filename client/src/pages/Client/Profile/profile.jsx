@@ -9,21 +9,8 @@ import { useFormik, FieldArray, FormikProvider } from "formik";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../../../firebase";
 import { toast, ToastContainer } from "react-toastify";
-import {
-  useNavigate,
-  useParams,
-  useLocation,
-  useNavigation,
-  createBrowserRouter,
-  useNavigationType,
-} from "react-router-dom";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  updateDoc,
-} from "firebase/firestore";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { doc, updateDoc } from "firebase/firestore";
 import {
   clearError,
   userProfileByIdThunk,
@@ -45,8 +32,6 @@ const Profile = ({ isChecked, handleChange }) => {
   const [isPhone, setIsPhone] = useState(false);
   const [image, setImage] = useState({});
   const [ifImage, setIfImage] = useState(false);
-  const [addEmail, setAddEmail] = useState([]);
-  const [addPhone, setAddPhone] = useState([]);
   const [addInterest, setAddInterest] = useState([]);
   const [imageUrl, setImageUrl] = useState("");
 
@@ -61,8 +46,6 @@ const Profile = ({ isChecked, handleChange }) => {
         if (data.payload) {
           const userDataFromFirestore = data.payload;
           setUserData(userDataFromFirestore);
-          // setAddEmail(userDataFromFirestore.emailList || []);
-          // setAddPhone(userDataFromFirestore.phoneList || []);
           setAddInterest(userDataFromFirestore.interest || []);
           setImageUrl(userDataFromFirestore.image || "");
         } else {
@@ -843,60 +826,6 @@ const Profile = ({ isChecked, handleChange }) => {
                     {!isMail && (
                       <div className="profile-mob-email-content-container">
                         <div className="profile-mob-email-scroll-container">
-                          {/* {addEmail.map((data, idx) => (
-                          <div
-                            key={idx}
-                            className="profile-mob-email-input-container"
-                          >
-                            <div className="profile-mob-email-input-inner-container">
-                              <input
-                                id={`email-${idx}`}
-                                name={`email-${idx}`}
-                                type="email"
-                                placeholder="Enter your email"
-                                onBlur={userProfile.handleBlur}
-                                value={data.email}
-                                onChange={(e) =>
-                                  setAddEmail(
-                                    addEmail.map((elm, index) =>
-                                      index === idx
-                                        ? { email: e.target.value }
-                                        : elm
-                                    )
-                                  )
-                                }
-                              />
-                              <div
-                                className="profile-mob-email-input-icon-container"
-                                onClick={() =>
-                                  setAddEmail(
-                                    addEmail.filter(
-                                      (elm, index) => idx != index
-                                    )
-                                  )
-                                }
-                              >
-                                <RxCross2 />
-                              </div>
-                            </div>
-                            {userProfile.touched.email &&
-                            userProfile.errors.email ? (
-                              <div id="input-errors">
-                                {userProfile.errors.email}
-                              </div>
-                            ) : null}
-                          </div>
-                        ))}
-
-                        <div
-                          className="profile-mob-add-email-button-container"
-                          onClick={() =>
-                            setAddEmail([...addEmail, { email: "" }])
-                          }
-                        >
-                          <p>{t("AddEmail")} +</p>
-                        </div> */}
-
                           <FieldArray
                             name="emailList"
                             render={(arryHelpers) => (
@@ -974,61 +903,6 @@ const Profile = ({ isChecked, handleChange }) => {
                     {!isPhone && (
                       <div className="profile-mob-phone-content-container">
                         <div className="profile-mob-phone-scroll-container">
-                          {/* {addPhone.map((data, idx) => (
-                          <div
-                            key={idx}
-                            className="profile-mob-phone-input-container"
-                          >
-                            <div className="profile-mob-phone-input-inner-container">
-                              <input
-                                id={`phone-${idx}`}
-                                name={`phone-${idx}`}
-                                type="tel"
-                                placeholder="Enter your phone"
-                                maxLength={10}
-                                minLength={10}
-                                onBlur={userProfile.handleBlur}
-                                value={data.phone}
-                                onChange={(e) =>
-                                  setAddPhone(
-                                    addPhone.map((elm, index) =>
-                                      index === idx
-                                        ? { phone: e.target.value }
-                                        : elm
-                                    )
-                                  )
-                                }
-                              />
-                              <div
-                                className="profile-mob-phone-input-icon-container"
-                                onClick={() =>
-                                  setAddPhone(
-                                    addPhone.filter(
-                                      (elm, index) => idx != index
-                                    )
-                                  )
-                                }
-                              >
-                                <RxCross2 />
-                              </div>
-                            </div>
-                            {userProfile.touched.phone &&
-                            userProfile.errors.phone ? (
-                              <div id="input-errors">
-                                {userProfile.errors.phone}
-                              </div>
-                            ) : null}
-                          </div>
-                        ))}
-
-                        <div
-                          className="profile-mob-add-phone-button-container"
-                          onClick={() =>
-                            setAddPhone([...addPhone, { phone: "" }])
-                          }
-                        >
-                          <p>{t("AddPhone")} +</p>
-                        </div> */}
                           <FieldArray
                             name="phoneList"
                             render={(arryHelpers) => (
